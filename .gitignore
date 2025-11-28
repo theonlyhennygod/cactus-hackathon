@@ -41,3 +41,7 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Model files (too large for git)
+*.gguf
+assets/models/*.gguf

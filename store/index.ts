@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { mmkvStorage } from './mmkv'; // We'll need to create this wrapper
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { mmkvStorage } from './mmkv'; // We'll need to create this wrapper
 
 // Types
 interface CheckInState {
@@ -17,6 +17,9 @@ interface VitalsState {
   breathingRate: number | null;
   tremorIndex: number | null;
   coughType: string | null;
+  triageSummary: string | null;
+  triageSeverity: 'green' | 'yellow' | 'red' | null;
+  triageRecommendations: string[];
   setVitals: (vitals: Partial<Omit<VitalsState, 'setVitals' | 'reset'>>) => void;
   reset: () => void;
 }
@@ -44,8 +47,20 @@ export const useVitalsStore = create<VitalsState>((set) => ({
   breathingRate: null,
   tremorIndex: null,
   coughType: null,
+  triageSummary: null,
+  triageSeverity: null,
+  triageRecommendations: [],
   setVitals: (vitals) => set((state) => ({ ...state, ...vitals })),
-  reset: () => set({ heartRate: null, hrv: null, breathingRate: null, tremorIndex: null, coughType: null }),
+  reset: () => set({ 
+    heartRate: null, 
+    hrv: null, 
+    breathingRate: null, 
+    tremorIndex: null, 
+    coughType: null,
+    triageSummary: null,
+    triageSeverity: null,
+    triageRecommendations: []
+  }),
 }));
 
 export const useSettingsStore = create<SettingsState>()(

@@ -1,5 +1,4 @@
-import { Subscription } from 'expo-modules-core';
-import { Accelerometer } from 'expo-sensors';
+import { Accelerometer, type AccelerometerMeasurement } from 'expo-sensors';
 
 export interface AccelerometerData {
     x: number;
@@ -8,7 +7,7 @@ export interface AccelerometerData {
     timestamp: number;
 }
 
-let subscription: Subscription | null = null;
+let subscription: ReturnType<typeof Accelerometer.addListener> | null = null;
 let dataBuffer: AccelerometerData[] = [];
 
 export const startAccelerometer = (updateInterval = 20) => {

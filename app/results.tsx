@@ -11,6 +11,7 @@ export default function ResultsScreen() {
 
   const handleDone = () => {
     reset();
+    vitals.reset();
     router.replace('/');
   };
 
@@ -18,9 +19,36 @@ export default function ResultsScreen() {
     await generateAndSharePDF(vitals);
   };
 
+  const getSeverityColor = () => {
+    switch (vitals.triageSeverity) {
+      case 'green': return '#4CAF50';
+      case 'yellow': return '#FFC107';
+      case 'red': return '#F44336';
+      default: return '#999';
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Wellness Check Results</Text>
+
+      {vitals.triageSummary && (
+        <View style={[styles.triageCard, { borderLeftColor: getSeverityColor(), borderLeftWidth: 6 }]}>
+          <Text style={styles.triageTitle}>Assessment</Text>
+          <Text style={styles.triageSummary}>{vitals.triageSummary}</Text>
+          
+          {vitals.triageRecommendations.length > 0 && (
+            <View style={styles.recommendationsSection}>
+              <Text style={styles.recommendationsTitle}>Recommendations:</Text>
+              {vitals.triageRecommendations.map((rec, index) => (
+                <Text key={index} style={styles.recommendation}>• {rec}</Text>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      <Text style={styles.sectionTitle}>Vital Signs</Text>
 
       <View style={styles.card}>
         <Text style={styles.label}>Heart Rate</Text>
@@ -41,6 +69,13 @@ export default function ResultsScreen() {
         <Text style={styles.label}>Tremor Index</Text>
         <Text style={styles.value}>{vitals.tremorIndex ? vitals.tremorIndex.toFixed(2) : '--'}</Text>
       </View>
+
+      {vitals.coughType && (
+        <View style={styles.card}>
+          <Text style={styles.label}>Cough Type</Text>
+          <Text style={styles.value}>{vitals.coughType}</Text>
+        </View>
+      )}
 
       <View style={styles.section}>
         <BreathingCoach />
@@ -65,8 +100,49 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 30,
+    marginBottom: 20,
     marginTop: 20,
+  },
+  triageCard: {
+    width: '100%',
+    padding: 20,
+    backgroundColor: '#f0f8ff',
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  triageTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
+  },
+  triageSummary: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#555',
+    marginBottom: 15,
+  },
+  recommendationsSection: {
+    marginTop: 10,
+  },
+  recommendationsTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#666',
+  },
+  recommendation: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#444',
+    marginLeft: 10,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 15,
+    alignSelf: 'flex-start',
+    color: '#333',
   },
   card: {
     width: '100%',

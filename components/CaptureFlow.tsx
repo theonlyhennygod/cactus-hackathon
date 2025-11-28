@@ -1,10 +1,11 @@
 import { Audio } from 'expo-av';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Button, StyleSheet, Text, View } from 'react-native';
+import { runWellnessCheck } from '../agents/Orchestrator';
 import { useCheckInStore, useVitalsStore } from '../store';
-import { startAccelerometer, stopAccelerometer } from '../utils/sensorHelpers';
+import { AccelerometerData, startAccelerometer, stopAccelerometer } from '../utils/sensorHelpers';
 
 export default function CaptureFlow() {
     const { step, setStep, isCapturing, setIsCapturing, reset } = useCheckInStore();
@@ -15,6 +16,12 @@ export default function CaptureFlow() {
     const [audioPermission, requestAudioPermission] = Audio.usePermissions();
     const [recording, setRecording] = useState<Audio.Recording | null>(null);
     const [timeLeft, setTimeLeft] = useState(0);
+    const [capturedData, setCapturedData] = useState<{
+        faceImageUri?: string;
+        audioUri?: string;
+        skinImageUri?: string;
+        accelData?: AccelerometerData[];
+    }>({});
     const cameraRef = useRef<CameraView>(null);
 
     useEffect(() => {
@@ -76,11 +83,18 @@ export default function CaptureFlow() {
         setIsCapturing(false);
 
         if (step === 'face') {
+            // Capture face photo for PPG
+            if (cameraRef.current) {
+                const photo = await cameraRef.current.takePictureAsync();
+                setCapturedData(prev => ({ ...prev, faceImageUri: photo?.uri }));
+                console.log('Face photo taken:', photo?.uri);
+            }
             setStep('cough');
         } else if (step === 'cough') {
             if (recording) {
                 await recording.stopAndUnloadAsync();
                 const uri = recording.getURI();
+                setCapturedData(prev => ({ ...prev, audioUri: uri || undefined }));
                 console.log('Recording stopped and stored at', uri);
                 setRecording(null);
             }
@@ -89,14 +103,37 @@ export default function CaptureFlow() {
             setStep('tremor');
         } else if (step === 'tremor') {
             const data = stopAccelerometer();
+            setCapturedData(prev => ({ ...prev, accelData: data }));
             console.log('Accelerometer data points:', data.length);
-            setVitals({ tremorIndex: Math.random() * 10 }); // Dummy processing
             setStep('processing');
-            // Simulate processing delay then go to results
-            setTimeout(() => {
+            
+            // Run orchestrator with all captured data
+            try {
+                const result = await runWellnessCheck(
+                    capturedData.faceImageUri || '',
+                    capturedData.audioUri || '',
+                    data
+                );
+                
+                setVitals({
+                    heartRate: result.vitals.heartRate,
+                    hrv: result.vitals.hrv,
+                    breathingRate: result.vitals.breathingRate,
+                    tremorIndex: result.vitals.tremorIndex,
+                    coughType: result.vitals.coughType,
+                    triageSummary: result.triage.summary,
+                    triageSeverity: result.triage.severity,
+                    triageRecommendations: result.triage.recommendations
+                });
+                
                 setStep('results');
                 router.push('/results');
-            }, 2000);
+            } catch (error) {
+                console.error('Wellness check failed:', error);
+                // Still show results with partial data
+                setStep('results');
+                router.push('/results');
+            }
         }
     };
 
@@ -174,25 +211,37 @@ export default function CaptureFlow() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: '#f8f9fa',
     },
     header: {
-        padding: 20,
+        padding: 24,
         alignItems: 'center',
-        backgroundColor: '#f0f0f0',
+        backgroundColor: '#ffffff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#e9ecef',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 3,
     },
     title: {
-        fontSize: 18,
-        fontWeight: 'bold',
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#212529',
+        letterSpacing: 0.5,
     },
     content: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        padding: 20,
     },
     camera: {
         width: '100%',
         height: '100%',
+        borderRadius: 16,
+        overflow: 'hidden',
     },
     overlay: {
         flex: 1,
@@ -205,33 +254,51 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         width: '100%',
-        backgroundColor: '#eee',
+        backgroundColor: '#ffffff',
+        borderRadius: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 5,
     },
     instruction: {
-        color: '#fff',
-        fontSize: 20,
+        color: '#ffffff',
+        fontSize: 18,
         textAlign: 'center',
         marginBottom: 20,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        padding: 10,
-        borderRadius: 10,
+        backgroundColor: 'rgba(102, 126, 234, 0.9)',
+        padding: 16,
+        borderRadius: 12,
+        fontWeight: '600',
     },
     timer: {
-        fontSize: 48,
-        fontWeight: 'bold',
-        color: '#333',
+        fontSize: 64,
+        fontWeight: '700',
+        color: '#667eea',
+        letterSpacing: 2,
     },
     footer: {
-        padding: 20,
+        padding: 24,
         alignItems: 'center',
-        backgroundColor: '#f0f0f0',
+        backgroundColor: '#ffffff',
+        borderTopWidth: 1,
+        borderTopColor: '#e9ecef',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 3,
     },
     text: {
         textAlign: 'center',
         marginBottom: 20,
+        fontSize: 16,
+        color: '#495057',
     },
     capturingText: {
-        fontSize: 18,
-        color: 'red',
+        fontSize: 16,
+        color: '#667eea',
+        fontWeight: '600',
     },
 });
