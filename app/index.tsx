@@ -5,7 +5,7 @@ import CaptureFlow from '../components/CaptureFlow';
 export default function HomeScreen() {
     return (
         <View style={styles.container}>
-            <Stack.Screen options={{ title: 'Pocket Wellness' }} />
+            <Stack.Screen options={{ title: 'Pocket Doctor' }} />
             <CaptureFlow />
         </View>
     );

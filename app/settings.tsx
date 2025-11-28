@@ -44,7 +44,7 @@ export default function SettingsScreen() {
             </View>
 
             <View style={styles.footer}>
-                <Text style={styles.footerText}>Pocket Wellness v1.0.0 (Hackathon Build)</Text>
+                <Text style={styles.footerText}>Pocket Doctor v1.0.0 (Hackathon Build)</Text>
                 <Text style={styles.footerText}>Powered by Echo-LNN & Cactus</Text>
             </View>
         </View>
