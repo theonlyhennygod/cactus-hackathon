@@ -1,8 +1,51 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Button, ScrollView, StyleSheet, Text, View } from 'react-native';
-import BreathingCoach from '../components/BreathingCoach';
-import { useCheckInStore, useVitalsStore } from '../store';
-import { generateAndSharePDF } from '../utils/pdfExport';
+import React from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import BreathingCoach from '@/components/BreathingCoach';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { VitalCard } from '@/components/ui/VitalCard';
+import { Colors, palette, radius, shadows, spacing, typography } from '@/constants/theme';
+import { useCheckInStore, useVitalsStore } from '@/store';
+import { generateAndSharePDF } from '@/utils/pdfExport';
+
+type VitalStatus = 'excellent' | 'good' | 'normal' | 'caution' | 'concern';
+
+function getHeartRateStatus(hr: number): VitalStatus {
+  if (hr >= 60 && hr <= 70) return 'excellent';
+  if (hr >= 55 && hr <= 80) return 'good';
+  if (hr >= 50 && hr <= 100) return 'normal';
+  if (hr >= 45 && hr <= 110) return 'caution';
+  return 'concern';
+}
+
+function getHRVStatus(hrv: number): VitalStatus {
+  if (hrv >= 60) return 'excellent';
+  if (hrv >= 45) return 'good';
+  if (hrv >= 30) return 'normal';
+  if (hrv >= 20) return 'caution';
+  return 'concern';
+}
+
+function getBreathingStatus(br: number): VitalStatus {
+  if (br >= 12 && br <= 16) return 'excellent';
+  if (br >= 10 && br <= 18) return 'good';
+  if (br >= 8 && br <= 20) return 'normal';
+  return 'caution';
+}
+
+function getTremorStatus(ti: number): VitalStatus {
+  if (ti < 0.5) return 'excellent';
+  if (ti < 1.0) return 'good';
+  if (ti < 1.5) return 'normal';
+  if (ti < 2.0) return 'caution';
+  return 'concern';
+}
 
 export default function ResultsScreen() {
   const router = useRouter();
@@ -18,80 +61,276 @@ export default function ResultsScreen() {
     await generateAndSharePDF(vitals);
   };
 
+  // Calculate overall status
+  const getOverallStatus = () => {
+    const statuses = [
+      vitals.heartRate ? getHeartRateStatus(vitals.heartRate) : 'normal',
+      vitals.hrv ? getHRVStatus(vitals.hrv) : 'normal',
+      vitals.breathingRate ? getBreathingStatus(vitals.breathingRate) : 'normal',
+      vitals.tremorIndex ? getTremorStatus(vitals.tremorIndex) : 'normal',
+    ];
+    
+    if (statuses.includes('concern')) return { status: 'concern', message: 'Consider consulting a healthcare provider', color: palette.danger[500] };
+    if (statuses.includes('caution')) return { status: 'caution', message: 'Some metrics need attention', color: palette.warning[500] };
+    if (statuses.every(s => s === 'excellent' || s === 'good')) return { status: 'great', message: 'Your vitals look great!', color: palette.success[500] };
+    return { status: 'normal', message: 'Your vitals are within normal range', color: palette.primary[500] };
+  };
+
+  const overall = getOverallStatus();
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Wellness Check Results</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView 
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <Animated.View entering={FadeInDown.duration(500).springify()}>
+          <LinearGradient
+            colors={[overall.color, overall.color + 'DD']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.headerCard}
+          >
+            <View style={styles.headerIconContainer}>
+              <Ionicons 
+                name={overall.status === 'concern' ? 'alert-circle' : overall.status === 'caution' ? 'warning' : 'checkmark-circle'} 
+                size={40} 
+                color={palette.white} 
+              />
+            </View>
+            <Text style={styles.headerTitle}>Wellness Check Complete</Text>
+            <Text style={styles.headerMessage}>{overall.message}</Text>
+            
+            <View style={styles.timestampContainer}>
+              <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.8)" />
+              <Text style={styles.timestamp}>
+                {new Date().toLocaleString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  hour: 'numeric', 
+                  minute: '2-digit' 
+                })}
+              </Text>
+            </View>
+          </LinearGradient>
+        </Animated.View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Heart Rate</Text>
-        <Text style={styles.value}>{vitals.heartRate ? vitals.heartRate.toFixed(0) : '--'} bpm</Text>
-      </View>
+        {/* Vitals Grid */}
+        <Text style={styles.sectionTitle}>Your Vitals</Text>
+        
+        <View style={styles.vitalsGrid}>
+          <View style={styles.vitalColumn}>
+            <VitalCard
+              title="Heart Rate"
+              value={vitals.heartRate ? vitals.heartRate.toFixed(0) : '--'}
+              unit="bpm"
+              icon="heart"
+              status={vitals.heartRate ? getHeartRateStatus(vitals.heartRate) : 'normal'}
+              subtitle="Resting heart rate"
+              animationDelay={100}
+            />
+            <VitalCard
+              title="Breathing Rate"
+              value={vitals.breathingRate ? vitals.breathingRate.toFixed(0) : '--'}
+              unit="rpm"
+              icon="fitness"
+              status={vitals.breathingRate ? getBreathingStatus(vitals.breathingRate) : 'normal'}
+              subtitle="Breaths per minute"
+              animationDelay={300}
+            />
+          </View>
+          <View style={styles.vitalColumn}>
+            <VitalCard
+              title="HRV"
+              value={vitals.hrv ? vitals.hrv.toFixed(0) : '--'}
+              unit="ms"
+              icon="pulse"
+              status={vitals.hrv ? getHRVStatus(vitals.hrv) : 'normal'}
+              subtitle="Heart rate variability"
+              animationDelay={200}
+            />
+            <VitalCard
+              title="Tremor Index"
+              value={vitals.tremorIndex ? vitals.tremorIndex.toFixed(2) : '--'}
+              unit=""
+              icon="hand-left"
+              status={vitals.tremorIndex ? getTremorStatus(vitals.tremorIndex) : 'normal'}
+              subtitle="Hand stability score"
+              animationDelay={400}
+            />
+          </View>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>HRV</Text>
-        <Text style={styles.value}>{vitals.hrv ? vitals.hrv.toFixed(0) : '--'} ms</Text>
-      </View>
+        {/* AI Triage Summary */}
+        <Animated.View entering={FadeInUp.delay(500).duration(500).springify()}>
+          <Card variant="outlined" padding="lg" style={styles.triageCard}>
+            <View style={styles.triageHeader}>
+              <View style={styles.triageIconContainer}>
+                <Ionicons name="sparkles" size={20} color={Colors.light.primary} />
+              </View>
+              <Text style={styles.triageTitle}>AI Health Summary</Text>
+            </View>
+            <Text style={styles.triageText}>
+              Based on your vitals, everything looks {overall.status === 'great' ? 'excellent' : 'stable'}. 
+              {vitals.heartRate && vitals.heartRate < 75 && ' Your resting heart rate indicates good cardiovascular fitness.'}
+              {vitals.tremorIndex && vitals.tremorIndex < 1 && ' Hand stability is excellent.'}
+              {' '}Consider staying hydrated and maintaining your current wellness routine.
+            </Text>
+            <View style={styles.triageFooter}>
+              <Ionicons name="shield-checkmark" size={14} color={Colors.light.textTertiary} />
+              <Text style={styles.triageDisclaimer}>
+                Non-diagnostic wellness insights only
+              </Text>
+            </View>
+          </Card>
+        </Animated.View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Breathing Rate</Text>
-        <Text style={styles.value}>{vitals.breathingRate ? vitals.breathingRate.toFixed(0) : '--'} rpm</Text>
-      </View>
+        {/* Breathing Coach */}
+        <Animated.View entering={FadeInUp.delay(600).duration(500).springify()}>
+          <Text style={styles.sectionTitle}>Wellness Tools</Text>
+          <BreathingCoach />
+        </Animated.View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Tremor Index</Text>
-        <Text style={styles.value}>{vitals.tremorIndex ? vitals.tremorIndex.toFixed(2) : '--'}</Text>
-      </View>
-
-      <View style={styles.section}>
-        <BreathingCoach />
-      </View>
-
-      <View style={styles.buttonGroup}>
-        <Button title="Export PDF Summary" onPress={handleExport} />
-        <View style={{ height: 10 }} />
-        <Button title="Start New Check-In" onPress={handleDone} color="#666" />
-      </View>
-    </ScrollView>
+        {/* Action Buttons */}
+        <Animated.View 
+          entering={FadeInUp.delay(700).duration(500).springify()}
+          style={styles.actions}
+        >
+          <Button
+            title="Export PDF Summary"
+            icon="document-text-outline"
+            variant="primary"
+            size="lg"
+            fullWidth
+            onPress={handleExport}
+            style={{ marginBottom: spacing.sm }}
+          />
+          <Button
+            title="Start New Check-In"
+            icon="refresh-outline"
+            variant="outline"
+            size="lg"
+            fullWidth
+            onPress={handleDone}
+          />
+        </Animated.View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    backgroundColor: '#fff',
+    flex: 1,
+    backgroundColor: Colors.light.background,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
+  },
+  headerCard: {
+    borderRadius: radius.xxl,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
     alignItems: 'center',
-    paddingBottom: 50,
+    ...shadows.lg,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    marginTop: 20,
+  headerIconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
   },
-  card: {
-    width: '100%',
-    padding: 15,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 10,
-    marginBottom: 10,
+  headerTitle: {
+    fontSize: typography.size.xxl,
+    fontWeight: typography.weight.bold,
+    color: palette.white,
+    marginBottom: spacing.xs,
+  },
+  headerMessage: {
+    fontSize: typography.size.md,
+    color: 'rgba(255,255,255,0.9)',
+    textAlign: 'center',
+  },
+  timestampContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
   },
-  label: {
-    fontSize: 16,
-    color: '#666',
+  timestamp: {
+    fontSize: typography.size.xs,
+    color: 'rgba(255,255,255,0.9)',
+    marginLeft: spacing.xs,
   },
-  value: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  sectionTitle: {
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.semibold,
+    color: Colors.light.text,
+    marginBottom: spacing.md,
+    marginTop: spacing.sm,
   },
-  section: {
-    width: '100%',
-    marginVertical: 20,
+  vitalsGrid: {
+    flexDirection: 'row',
+    marginHorizontal: -spacing.xs,
   },
-  buttonGroup: {
-    width: '100%',
-    marginTop: 20,
+  vitalColumn: {
+    flex: 1,
+    paddingHorizontal: spacing.xs,
+  },
+  triageCard: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  triageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  triageIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.md,
+    backgroundColor: Colors.light.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  triageTitle: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    color: Colors.light.text,
+  },
+  triageText: {
+    fontSize: typography.size.md,
+    color: Colors.light.textSecondary,
+    lineHeight: typography.size.md * typography.lineHeight.relaxed,
+  },
+  triageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+  },
+  triageDisclaimer: {
+    fontSize: typography.size.xs,
+    color: Colors.light.textTertiary,
+    marginLeft: spacing.xs,
+  },
+  actions: {
+    marginTop: spacing.md,
   },
 });
