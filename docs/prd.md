@@ -1,5 +1,5 @@
-# Pocket Wellness — PRD
-**Codename:** Pocket Wellness / Echo-LNN Edition
+# Pocket Doctor — PRD
+**Codename:** Pocket Doctor / Echo-LNN Edition
 **Stack:** Expo React Native (prebuild/EAS), cactus-react-native, Hugging Face models, zustand for state, MMKV/SQLite for local storage
 **Purpose:** Private, offline-first multimodal wellness triage app analyzing camera, audio, and inertial sensors on-device using agent workflows and Echo-LNN time-series engine. Hackathon-ready and demo-focused.
 

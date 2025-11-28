@@ -1,7 +1,7 @@
-# Pocket Wellness - Demo Script (60-90s)
+# Pocket Doctor - Demo Script (60-90s)
 
 ## Intro (0:00 - 0:15)
-"Hi, I'm [Name]. This is **Pocket Wellness**, an offline-first, privacy-focused triage app powered by on-device agents and Echo-LNN."
+"Hi, I'm [Name]. This is **Pocket Doctor**, an offline-first, privacy-focused triage app powered by on-device agents and Echo-LNN."
 *Action: Show Home Screen.*
 "We solve the problem of 'do I need a doctor?' without sending your data to the cloud."
 
@@ -28,4 +28,4 @@
 *Action: Tap 'Export PDF'. Show share sheet.*
 
 ## Outro (1:15 - 1:30)
-"That's Pocket Wellness. Private, multimodal, and fast. Built with Expo and Cactus. Thank you."
+"That's Pocket Doctor. Private, multimodal, and fast. Built with Expo and Cactus. Thank you."
