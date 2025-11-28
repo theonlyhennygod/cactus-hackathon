@@ -22,23 +22,26 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
+      "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
       [
-        "expo-splash-screen",
+        "expo-camera",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+          "cameraPermission": "Allow Pocket Wellness to access your camera for health checks."
         }
-      ]
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Pocket Wellness to access your microphone for cough analysis."
+        }
+      ],
+      "expo-sensors",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,
