@@ -106,16 +106,16 @@ export default function CaptureFlow() {
 
     if (!permission.granted || !audioPermission.granted) {
         return (
-            <View style={styles.container}>
+            <SafeAreaView style={styles.container}>
                 <Text style={styles.text}>We need camera and microphone permissions to proceed.</Text>
                 <Button onPress={requestPermission} title="Grant Camera Permission" />
                 <Button onPress={requestAudioPermission} title="Grant Audio Permission" />
-            </View>
+            </SafeAreaView>
         );
     }
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.title}>Step: {step.toUpperCase()}</Text>
             </View>
@@ -154,7 +154,7 @@ export default function CaptureFlow() {
                 {step === 'processing' && (
                     <View style={styles.placeholder}>
                         <ActivityIndicator size="large" color="#0000ff" />
-                        <Text style={styles.instruction}>Analyzing your wellness data...</Text>
+                        <Text style={styles.instruction}>Analyzing your health data...</Text>
                     </View>
                 )}
             </View>
@@ -167,7 +167,7 @@ export default function CaptureFlow() {
                     <Text style={styles.capturingText}>Capturing... {timeLeft > 0 ? `${timeLeft}s` : ''}</Text>
                 )}
             </View>
-        </View>
+        </SafeAreaView>
     );
 }
 
