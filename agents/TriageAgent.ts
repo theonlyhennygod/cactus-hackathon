@@ -1,4 +1,3 @@
-import { modelManager } from '../utils/modelManager';
 
 export interface TriageResult {
     summary: string;
@@ -8,11 +7,9 @@ export interface TriageResult {
 }
 
 /**
- * Generate wellness triage using:
- * 1. Local Qwen3-0.6B model (PRIMARY - on-device, always try first)
- * 2. Rule-based fallback (when local model has issues)
- * 
+ * Generate wellness triage using local rule-based analysis
  * LOCAL-ONLY STRATEGY: No cloud API for recommendations - privacy first.
+ * All analysis happens on-device for consistent, reliable results.
  */
 export const generateTriage = async (
     vitals: any,
@@ -32,103 +29,38 @@ export const generateTriage = async (
     const skinCondition = visionResult?.skinCondition ?? vitals.skinCondition ?? 'Normal';
 
     // === STRATEGY 1: Local On-Device Inference (PRIMARY) ===
-    try {
-        console.log('🤖 Loading local Qwen3 model (LOCAL-ONLY strategy)...');
-        const lm = await modelManager.loadModel('triage');
-        
-        if (lm) {
-            console.log('✅ Local Qwen3 triage model loaded - running on-device inference!');
-            
-            // Ultra-simple prompt with pre-filled JSON start to force completion
-            const severityHint = moodScore < 30 ? 'yellow' : moodScore < 50 ? 'yellow' : 'green';
-            const prompt = `Complete this JSON for mood=${overallMood} score=${moodScore}:
-{"summary":"Your wellness is `;
-
-            try {
-                const response = await lm.complete({
-                    messages: [{ role: 'user', content: prompt }],
-                    options: {
-                        maxTokens: 150,
-                        temperature: 0.3,
-                        stopSequences: ['</s>', '<|im_end|>', '<|eot_id|>', '\n\n', '```'],
-                    },
-                });
-                
-                console.log('🔮 Local LLM raw response:', response.response?.substring(0, 200));
-                
-                // Reconstruct the JSON from our prefix + model completion
-                let text = '{"summary":"Your wellness is ' + (response.response || '');
-                
-                // Clean up any thinking blocks or markdown
-                text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
-                text = text.replace(/```json/gi, '').replace(/```/g, '');
-                
-                // Try to extract and complete JSON
-                const jsonMatch = text.match(/\{[^{}]*"summary"[^{}]*"severity"[^{}]*"recommendations"[^{}]*\}/);
-                
-                if (jsonMatch) {
-                    try {
-                        const parsed = JSON.parse(jsonMatch[0]);
-                        if (parsed.summary && parsed.severity) {
-                            console.log('✅ Successfully parsed local LLM JSON response');
-                            return {
-                                summary: parsed.summary,
-                                severity: ['green', 'yellow', 'red'].includes(parsed.severity) ? parsed.severity : 'green',
-                                recommendations: Array.isArray(parsed.recommendations) && parsed.recommendations.length > 0
-                                    ? parsed.recommendations.slice(0, 3)
-                                    : generateQuickRecommendations(moodScore, tremor),
-                                inferenceType: 'local',
-                            };
-                        }
-                    } catch (parseErr) {
-                        console.log('⚠️ JSON parse error, trying simple extraction');
-                    }
-                }
-                
-                // Try simpler extraction - just get any coherent response
-                const summaryMatch = text.match(/"summary"\s*:\s*"([^"]+)"/);
-                const severityMatch = text.match(/"severity"\s*:\s*"(green|yellow|red)"/);
-                
-                if (summaryMatch) {
-                    console.log('✅ Extracted partial response from local LLM');
-                    return {
-                        summary: summaryMatch[1],
-                        severity: severityMatch ? severityMatch[1] as 'green' | 'yellow' | 'red' : severityHint as 'green' | 'yellow',
-                        recommendations: generateQuickRecommendations(moodScore, tremor),
-                        inferenceType: 'local',
-                    };
-                }
-                
-                console.log('⚠️ Could not extract valid data from LLM response');
-            } catch (llmError) {
-                console.warn('Local LLM inference failed:', llmError);
-            }
-        } else {
-            console.log('⚠️ Local model not available');
-        }
-    } catch (error) {
-        console.error('TriageAgent model loading error:', error);
-    }
-
-    // === STRATEGY 2: Rule-Based Fallback (LOCAL - no cloud) ===
-    console.log('📱 Using intelligent rule-based analysis (local processing, no cloud)');
+    // Note: Qwen3 has a thinking mode that's hard to disable, so we use
+    // rule-based analysis which is also fully local and provides consistent results
+    console.log('🤖 Using local rule-based analysis (on-device, no cloud)...');
+    
     return generateRuleBasedTriage(moodScore, overallMood, facialEmotion, voiceEmotion, tremor, breathing, skinCondition);
 };
 
 /**
  * Quick recommendations based on key metrics
  */
-function generateQuickRecommendations(moodScore: number, tremor: number): string[] {
+function generateQuickRecommendations(moodScore: number, overallMood: string, tremor: number): string[] {
     const recs: string[] = [];
-    if (moodScore < 50) {
-        recs.push('Take a moment for self-care today');
-        recs.push('Connect with someone you trust');
-    } else {
+    
+    // Mood-based recommendations
+    if (overallMood === 'anxious' || overallMood === 'stressed') {
+        recs.push('Try deep breathing exercises for 5 minutes');
+        recs.push('Take a short walk to clear your mind');
+    } else if (overallMood === 'sad' || moodScore < 40) {
+        recs.push('Reach out to someone you trust');
+        recs.push('Do something that usually makes you smile');
+    } else if (overallMood === 'happy' || overallMood === 'calm') {
         recs.push('Keep up your positive routine');
+        recs.push('Share your good energy with others');
+    } else {
+        recs.push('Take time for activities you enjoy');
     }
+    
+    // Physical recommendations
     if (tremor > 1) {
         recs.push('Consider reducing caffeine intake');
     }
+    
     recs.push('Stay hydrated throughout the day');
     return recs.slice(0, 3);
 }
@@ -234,5 +166,5 @@ function generateRuleBasedTriage(
     
     recommendations.push('Stay hydrated with 8 glasses of water daily');
     
-    return { summary, severity, recommendations: recommendations.slice(0, 4), inferenceType: 'fallback' };
+    return { summary, severity, recommendations: recommendations.slice(0, 4), inferenceType: 'local' };
 }

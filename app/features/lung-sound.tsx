@@ -113,7 +113,7 @@ export default function LungSoundScreen() {
       );
       recordingRef.current = recording;
       setIsRecording(true);
-      setTimeLeft(15); // 15 seconds for lung sound recording
+      setTimeLeft(8); // 8 seconds for lung sound recording
       console.log('🎤 Recording started for lung sound analysis...');
     } catch (err) {
       console.error('Failed to start recording:', err);

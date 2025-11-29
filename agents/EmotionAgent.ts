@@ -19,7 +19,7 @@ export interface EmotionResult {
 }
 
 // Gemini API for cloud fallback
-const GEMINI_API_KEY = 'AIzaSyBbdAsfYEoNCjGxaWfUj5FWi8peo67-NZI';
+const GEMINI_API_KEY = 'AIzaSyCZfkmUYe0w1rs6cj08qt_bFIKWx8Fzbco';
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 // Emotion questions to prompt the user

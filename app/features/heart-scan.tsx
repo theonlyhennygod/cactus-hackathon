@@ -6,16 +6,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-    FadeIn,
-    FadeInDown,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSequence,
-    withSpring,
-    withTiming,
-} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { analyzeEmotion, getRandomQuestion, type EmotionResult, type EmotionType } from '@/agents';
@@ -60,10 +50,6 @@ export default function EmotionScanScreen() {
   const recordingRef = useRef<Audio.Recording | null>(null);
   const audioUri = useRef<string | null>(null);
 
-  // Animation values
-  const pulseScale = useSharedValue(1);
-  const resultScale = useSharedValue(0);
-
   useEffect(() => {
     requestAudioPermission();
     return () => {
@@ -85,22 +71,6 @@ export default function EmotionScanScreen() {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isRecording]);
-
-  // Pulse animation for recording
-  useEffect(() => {
-    if (isRecording) {
-      pulseScale.value = withRepeat(
-        withSequence(
-          withTiming(1.2, { duration: 500 }),
-          withTiming(1, { duration: 500 })
-        ),
-        -1,
-        true
-      );
-    } else {
-      pulseScale.value = withSpring(1);
-    }
   }, [isRecording]);
 
   const requestAudioPermission = async () => {
@@ -223,8 +193,6 @@ export default function EmotionScanScreen() {
         moodDescription: result.moodDescription,
       });
       
-      // Animate result
-      resultScale.value = withSpring(1, { damping: 10 });
       setStep('result');
       
     } catch (error) {
@@ -249,7 +217,6 @@ export default function EmotionScanScreen() {
         voiceEmotion: 'neutral',
         moodDescription: fallbackResult.moodDescription,
       });
-      resultScale.value = withSpring(1);
       setStep('result');
     }
   };
@@ -262,15 +229,6 @@ export default function EmotionScanScreen() {
   const handleDone = () => {
     router.back();
   };
-
-  const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulseScale.value }],
-  }));
-
-  const resultStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: resultScale.value }],
-    opacity: resultScale.value,
-  }));
 
   // Check permissions
   const hasAllPermissions = cameraPermission?.granted && audioPermission;
@@ -318,7 +276,7 @@ export default function EmotionScanScreen() {
           colors={[palette.primary[500], palette.primary[600]]}
           style={styles.processingContainer}
         >
-          <Animated.View entering={FadeIn.duration(300)} style={styles.processingContent}>
+          <View style={styles.processingContent}>
             <View style={styles.processingIcon}>
               <Ionicons name="sparkles" size={48} color={palette.white} />
             </View>
@@ -326,7 +284,7 @@ export default function EmotionScanScreen() {
             <Text style={styles.processingSubtitle}>
               Processing facial expression & voice sentiment...
             </Text>
-          </Animated.View>
+          </View>
         </LinearGradient>
       </View>
     );
@@ -347,7 +305,7 @@ export default function EmotionScanScreen() {
         </SafeAreaView>
 
         <View style={styles.resultContent}>
-          <Animated.View style={[styles.resultCard, resultStyle]}>
+          <View style={styles.resultCard}>
             {/* Main Score */}
             <View style={[styles.moodCircle, { borderColor: moodColor }]}>
               <Text style={styles.moodEmoji}>{moodEmoji}</Text>
@@ -401,7 +359,7 @@ export default function EmotionScanScreen() {
                 {emotionResult.inferenceType === 'local' ? 'On-device AI' : 'Local Analysis'}
               </Text>
             </View>
-          </Animated.View>
+          </View>
         </View>
 
         <SafeAreaView edges={['bottom']} style={styles.footer}>
@@ -497,7 +455,7 @@ export default function EmotionScanScreen() {
           </View>
           
           <SafeAreaView edges={['bottom']} style={styles.footer}>
-            <Animated.View entering={FadeInDown.delay(200)}>
+            <View>
               <Text style={styles.stepTitle}>Step 1: Take a Selfie</Text>
               <Text style={styles.stepSubtitle}>Show your natural expression</Text>
               <Button
@@ -508,7 +466,7 @@ export default function EmotionScanScreen() {
                 onPress={capturePhoto}
                 style={{ marginTop: spacing.md }}
               />
-            </Animated.View>
+            </View>
           </SafeAreaView>
         </>
       )}
@@ -530,7 +488,7 @@ export default function EmotionScanScreen() {
           </View>
           
           <SafeAreaView edges={['bottom']} style={styles.footer}>
-            <Animated.View entering={FadeInDown.delay(200)}>
+            <View>
               <Text style={styles.stepTitle}>Step 2: Voice Response</Text>
               <Text style={styles.stepSubtitle}>Answer the question above</Text>
               <Button
@@ -544,7 +502,7 @@ export default function EmotionScanScreen() {
                 }}
                 style={{ marginTop: spacing.md }}
               />
-            </Animated.View>
+            </View>
           </SafeAreaView>
         </>
       )}
@@ -557,10 +515,10 @@ export default function EmotionScanScreen() {
               <Text style={styles.questionTextSmall}>{currentQuestion}</Text>
             </View>
             
-            <Animated.View style={[styles.recordingIndicator, pulseStyle]}>
+            <View style={styles.recordingIndicator}>
               <View style={styles.recordingDot} />
               <Text style={styles.recordingTime}>{recordingTime}s</Text>
-            </Animated.View>
+            </View>
             
             <Text style={styles.recordingHint}>
               {isRecording ? 'Listening...' : 'Recording stopped'}
@@ -568,7 +526,7 @@ export default function EmotionScanScreen() {
           </View>
           
           <SafeAreaView edges={['bottom']} style={styles.footer}>
-            <Animated.View entering={FadeInDown.delay(200)}>
+            <View>
               <Button
                 title={isRecording ? 'Stop & Analyze' : 'Analyzing...'}
                 icon={isRecording ? 'stop' : 'sparkles'}
@@ -580,7 +538,7 @@ export default function EmotionScanScreen() {
                   backgroundColor: isRecording ? palette.danger[500] : palette.primary[500],
                 }}
               />
-            </Animated.View>
+            </View>
           </SafeAreaView>
         </>
       )}

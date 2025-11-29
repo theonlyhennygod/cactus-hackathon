@@ -3,7 +3,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { generateTriage, type TriageResult } from '@/agents';
@@ -149,7 +148,7 @@ export default function ResultsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <Animated.View entering={FadeInDown.duration(500).springify()}>
+        <View>
           <LinearGradient
             colors={[overall.color, overall.color + 'DD']}
             start={{ x: 0, y: 0 }}
@@ -178,7 +177,7 @@ export default function ResultsScreen() {
               </Text>
             </View>
           </LinearGradient>
-        </Animated.View>
+        </View>
 
         {/* Offline Indicator - Disabled for Expo Go */}
         {/* <OfflineIndicator /> */}
@@ -212,7 +211,7 @@ export default function ResultsScreen() {
         </View>
 
         {/* AI Triage Summary */}
-        <Animated.View entering={FadeInUp.delay(500).duration(500).springify()}>
+        <View>
           <Card variant="outlined" padding="lg" style={styles.triageCard}>
             <View style={styles.triageHeader}>
               <View style={[
@@ -269,11 +268,11 @@ export default function ResultsScreen() {
               </Text>
             </View>
           </Card>
-        </Animated.View>
+        </View>
 
         {/* Skin Condition Card - if available */}
         {vitals.skinCondition && (
-          <Animated.View entering={FadeInUp.delay(550).duration(500).springify()}>
+          <View>
             <Card variant="filled" padding="md" style={styles.skinCard}>
               <View style={styles.skinHeader}>
                 <View style={styles.skinIconContainer}>
@@ -285,12 +284,12 @@ export default function ResultsScreen() {
                 Condition: <Text style={styles.skinConditionValue}>{vitals.skinCondition}</Text>
               </Text>
             </Card>
-          </Animated.View>
+          </View>
         )}
 
         {/* Mood Analysis Card - if available */}
         {vitals.moodScore !== null && vitals.overallMood && (
-          <Animated.View entering={FadeInUp.delay(575).duration(500).springify()}>
+          <View>
             <Card variant="filled" padding="md" style={styles.moodCard}>
               <View style={styles.moodHeader}>
                 <View style={[styles.moodIconContainer, { backgroundColor: EMOTION_COLORS[vitals.overallMood as EmotionType] + '20' }]}>
@@ -332,14 +331,11 @@ export default function ResultsScreen() {
                 </View>
               )}
             </Card>
-          </Animated.View>
+          </View>
         )}
 
         {/* Action Buttons */}
-        <Animated.View 
-          entering={FadeInUp.delay(600).duration(500).springify()}
-          style={styles.actions}
-        >
+        <View style={styles.actions}>
           <Button
             title="Export PDF Summary"
             icon="document-text-outline"
@@ -357,7 +353,7 @@ export default function ResultsScreen() {
             fullWidth
             onPress={handleDone}
           />
-        </Animated.View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
