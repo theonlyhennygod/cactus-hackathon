@@ -184,17 +184,20 @@ export default function HealthTrends({ metric = 'heartRate' }: HealthTrendsProps
       <View style={styles.statsRow}>
         <View style={styles.stat}>
           <Text style={styles.statLabel}>Avg</Text>
-          <Text style={styles.statValue}>{stats.avg} {config.unit}</Text>
+          <Text style={styles.statValue} numberOfLines={1}>{Math.round(stats.avg)}</Text>
+          <Text style={styles.statUnit}>{config.unit}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.stat}>
           <Text style={styles.statLabel}>Min</Text>
-          <Text style={styles.statValue}>{stats.min} {config.unit}</Text>
+          <Text style={styles.statValue} numberOfLines={1}>{Math.round(stats.min)}</Text>
+          <Text style={styles.statUnit}>{config.unit}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.stat}>
           <Text style={styles.statLabel}>Max</Text>
-          <Text style={styles.statValue}>{stats.max} {config.unit}</Text>
+          <Text style={styles.statValue} numberOfLines={1}>{Math.round(stats.max)}</Text>
+          <Text style={styles.statUnit}>{config.unit}</Text>
         </View>
       </View>
     </Card>
@@ -297,9 +300,14 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   statValue: {
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.semibold,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     color: Colors.light.text,
+  },
+  statUnit: {
+    fontSize: typography.size.xs,
+    color: Colors.light.textTertiary,
+    marginTop: 1,
   },
   statDivider: {
     width: 1,
