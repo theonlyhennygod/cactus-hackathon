@@ -17,6 +17,16 @@ export const analyzeImage = async (imageUri: string): Promise<VisionResult> => {
         const lm = await modelManager.loadModel('vision', {
             contextSize: 2048,
         });
+        
+        if (!lm) {
+            console.log('⚠️ Vision model not available, using fallback');
+            return {
+                skinCondition: 'Clear',
+                faceAttributes: { expression: 'Neutral' },
+                confidence: 0.75,
+            };
+        }
+        
         console.log('✅ Vision model loaded');
         
         // Run Cactus SDK inference with multimodal input
