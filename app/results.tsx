@@ -167,17 +167,39 @@ export default function ResultsScreen() {
         <Animated.View entering={FadeInUp.delay(500).duration(500).springify()}>
           <Card variant="outlined" padding="lg" style={styles.triageCard}>
             <View style={styles.triageHeader}>
-              <View style={styles.triageIconContainer}>
-                <Ionicons name="sparkles" size={20} color={Colors.light.primary} />
+              <View style={[
+                styles.triageIconContainer,
+                vitals.severity === 'red' && { backgroundColor: palette.danger[100] },
+                vitals.severity === 'yellow' && { backgroundColor: palette.warning[100] },
+              ]}>
+                <Ionicons 
+                  name="sparkles" 
+                  size={20} 
+                  color={
+                    vitals.severity === 'red' ? palette.danger[500] :
+                    vitals.severity === 'yellow' ? palette.warning[500] :
+                    Colors.light.primary
+                  } 
+                />
               </View>
               <Text style={styles.triageTitle}>AI Health Summary</Text>
             </View>
             <Text style={styles.triageText}>
-              Based on your vitals, everything looks {overall.status === 'great' ? 'excellent' : 'stable'}. 
-              {vitals.heartRate && vitals.heartRate < 75 && ' Your resting heart rate indicates good cardiovascular fitness.'}
-              {vitals.tremorIndex && vitals.tremorIndex < 1 && ' Hand stability is excellent.'}
-              {' '}Consider staying hydrated and maintaining your current wellness routine.
+              {vitals.summary || `Based on your vitals, everything looks ${overall.status === 'great' ? 'excellent' : 'stable'}. Consider staying hydrated and maintaining your current wellness routine.`}
             </Text>
+            
+            {/* AI Recommendations */}
+            {vitals.recommendations && vitals.recommendations.length > 0 && (
+              <View style={styles.recommendationsList}>
+                {vitals.recommendations.map((rec: string, index: number) => (
+                  <View key={index} style={styles.recommendationItem}>
+                    <Ionicons name="checkmark-circle" size={16} color={palette.success[500]} />
+                    <Text style={styles.recommendationText}>{rec}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            
             <View style={styles.triageFooter}>
               <Ionicons name="shield-checkmark" size={14} color={Colors.light.textTertiary} />
               <Text style={styles.triageDisclaimer}>
@@ -316,6 +338,21 @@ const styles = StyleSheet.create({
     fontSize: typography.size.md,
     color: Colors.light.textSecondary,
     lineHeight: typography.size.md * typography.lineHeight.relaxed,
+  },
+  recommendationsList: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  recommendationItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  recommendationText: {
+    flex: 1,
+    fontSize: typography.size.sm,
+    color: Colors.light.text,
+    lineHeight: typography.size.sm * typography.lineHeight.relaxed,
   },
   triageFooter: {
     flexDirection: 'row',

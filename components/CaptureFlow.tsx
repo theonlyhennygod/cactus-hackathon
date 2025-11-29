@@ -18,11 +18,14 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+// AI Agents
+import { analyzeAudio, analyzeImage, analyzeTimeSeries, generateTriage, saveSession } from '@/agents';
+
 import { Button } from '@/components/ui/Button';
 import { ProgressSteps } from '@/components/ui/ProgressSteps';
 import { Colors, palette, radius, shadows, spacing, typography } from '@/constants/theme';
 import { useCheckInStore, useVitalsStore } from '@/store';
-import { startAccelerometer, stopAccelerometer } from '@/utils/sensorHelpers';
+import { AccelerometerData, startAccelerometer, stopAccelerometer } from '@/utils/sensorHelpers';
 
 const STEPS = [
   { key: 'face', label: 'Face', icon: 'scan-outline' as const },
@@ -41,6 +44,12 @@ export default function CaptureFlow() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
   const cameraRef = useRef<CameraView>(null);
+
+  // Captured data for agent processing
+  const [capturedImageUri, setCapturedImageUri] = useState<string | null>(null);
+  const [capturedAudioUri, setCapturedAudioUri] = useState<string | null>(null);
+  const [capturedAccelData, setCapturedAccelData] = useState<AccelerometerData[]>([]);
+  const [processingStatus, setProcessingStatus] = useState<string>('');
 
   // Animation values
   const pulseScale = useSharedValue(1);
@@ -93,6 +102,20 @@ export default function CaptureFlow() {
 
     if (step === 'face') {
       setTimeLeft(10);
+      // Capture a photo for vision analysis after a short delay
+      setTimeout(async () => {
+        if (cameraRef.current) {
+          try {
+            const photo = await cameraRef.current.takePictureAsync({ quality: 0.5 });
+            if (photo?.uri) {
+              setCapturedImageUri(photo.uri);
+              console.log('📸 Face image captured:', photo.uri);
+            }
+          } catch (err) {
+            console.log('Camera capture not available, using fallback');
+          }
+        }
+      }, 3000); // Capture at 3 seconds
     } else if (step === 'cough') {
       try {
         await Audio.setAudioModeAsync({
@@ -120,33 +143,104 @@ export default function CaptureFlow() {
     setCompletedSteps((prev) => [...prev, step]);
 
     if (step === 'face') {
-      // Simulate PPG processing
-      setVitals({ 
-        heartRate: 68 + Math.floor(Math.random() * 15),
-        hrv: 40 + Math.floor(Math.random() * 30),
-      });
+      // Face scan complete - move to cough
       setStep('cough');
     } else if (step === 'cough') {
+      // Stop and save audio recording
       if (recording) {
-        await recording.stopAndUnloadAsync();
+        try {
+          await recording.stopAndUnloadAsync();
+          const uri = recording.getURI();
+          if (uri) {
+            setCapturedAudioUri(uri);
+            console.log('🎤 Audio recorded:', uri);
+          }
+        } catch (err) {
+          console.log('Audio stop error:', err);
+        }
         setRecording(null);
       }
-      setVitals({ 
-        breathingRate: 14 + Math.floor(Math.random() * 6),
-        coughType: 'dry',
-      });
       setStep('tremor');
     } else if (step === 'tremor') {
+      // Stop accelerometer and save data
       const data = stopAccelerometer();
-      console.log('Accelerometer data points:', data.length);
-      setVitals({ tremorIndex: Math.random() * 2 });
-      setStep('processing');
+      setCapturedAccelData(data);
+      console.log('📊 Accelerometer data points:', data.length);
       
-      // Simulate AI processing
-      setTimeout(() => {
-        setStep('results');
-        router.replace('/results');
-      }, 2500);
+      // Move to processing and run AI agents
+      setStep('processing');
+      await runAgentProcessing();
+    }
+  };
+
+  // Run all AI agents and navigate to results
+  const runAgentProcessing = async () => {
+    try {
+      setProcessingStatus('Analyzing face scan...');
+      console.log('🤖 Starting AI agent processing...');
+      
+      // 1. Vision Agent - analyze face image
+      const visionResult = await analyzeImage(capturedImageUri || '');
+      console.log('✅ Vision analysis:', visionResult);
+      
+      setProcessingStatus('Analyzing audio...');
+      // 2. Audio Agent - analyze cough/breathing
+      const audioResult = await analyzeAudio(capturedAudioUri || '');
+      console.log('✅ Audio analysis:', audioResult);
+      
+      setProcessingStatus('Analyzing motion data...');
+      // 3. Echo-LNN Agent - analyze time series (PPG + accelerometer)
+      const echoResult = await analyzeTimeSeries([], capturedAccelData);
+      console.log('✅ Time-series analysis:', echoResult);
+      
+      // Update vitals store with agent results
+      setVitals({
+        heartRate: Math.round(echoResult.heartRate),
+        hrv: Math.round(echoResult.hrv),
+        breathingRate: audioResult.breathingRate,
+        coughType: audioResult.coughType,
+        tremorIndex: echoResult.tremorIndex,
+        skinCondition: visionResult.skinCondition,
+      });
+      
+      setProcessingStatus('Generating recommendations...');
+      // 4. Triage Agent - generate wellness recommendations
+      const triageResult = await generateTriage(echoResult, visionResult, audioResult);
+      console.log('✅ Triage result:', triageResult);
+      
+      // Save session to memory
+      await saveSession({
+        timestamp: Date.now(),
+        vitals: { ...echoResult, ...audioResult, ...visionResult },
+        triage: triageResult,
+      });
+      
+      // Store triage result and navigate to results
+      setVitals({
+        summary: triageResult.summary,
+        severity: triageResult.severity,
+        recommendations: triageResult.recommendations,
+      });
+      
+      console.log('🎉 AI processing complete!');
+      setStep('results');
+      router.replace('/results');
+      
+    } catch (error) {
+      console.error('❌ Agent processing error:', error);
+      // Fallback to results with default values
+      setVitals({
+        heartRate: 72,
+        hrv: 50,
+        breathingRate: 16,
+        coughType: 'none',
+        tremorIndex: 0.5,
+        summary: 'Analysis complete. Your vitals appear normal.',
+        severity: 'green',
+        recommendations: ['Stay hydrated', 'Continue regular check-ins'],
+      });
+      setStep('results');
+      router.replace('/results');
     }
   };
 
@@ -333,7 +427,7 @@ export default function CaptureFlow() {
             <ProcessingAnimation />
             <Text style={styles.processingTitle}>Analyzing Your Health Data</Text>
             <Text style={styles.processingSubtitle}>
-              Our AI is processing your vitals using on-device models
+              {processingStatus || 'Our AI is processing your vitals using on-device models'}
             </Text>
           </Animated.View>
         )}

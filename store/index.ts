@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { mmkvStorage } from './mmkv'; // We'll need to create this wrapper
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { mmkvStorage } from './mmkv'; // We'll need to create this wrapper
 
 // Types
 interface CheckInState {
@@ -12,11 +12,19 @@ interface CheckInState {
 }
 
 interface VitalsState {
+  // Core vitals
   heartRate: number | null;
   hrv: number | null;
   breathingRate: number | null;
   tremorIndex: number | null;
   coughType: string | null;
+  // Vision analysis
+  skinCondition: string | null;
+  // AI Triage results
+  summary: string | null;
+  severity: 'green' | 'yellow' | 'red' | null;
+  recommendations: string[] | null;
+  // Methods
   setVitals: (vitals: Partial<Omit<VitalsState, 'setVitals' | 'reset'>>) => void;
   reset: () => void;
 }
@@ -39,13 +47,31 @@ export const useCheckInStore = create<CheckInState>((set) => ({
 }));
 
 export const useVitalsStore = create<VitalsState>((set) => ({
+  // Core vitals
   heartRate: null,
   hrv: null,
   breathingRate: null,
   tremorIndex: null,
   coughType: null,
+  // Vision analysis
+  skinCondition: null,
+  // AI Triage results
+  summary: null,
+  severity: null,
+  recommendations: null,
+  // Methods
   setVitals: (vitals) => set((state) => ({ ...state, ...vitals })),
-  reset: () => set({ heartRate: null, hrv: null, breathingRate: null, tremorIndex: null, coughType: null }),
+  reset: () => set({ 
+    heartRate: null, 
+    hrv: null, 
+    breathingRate: null, 
+    tremorIndex: null, 
+    coughType: null,
+    skinCondition: null,
+    summary: null,
+    severity: null,
+    recommendations: null,
+  }),
 }));
 
 export const useSettingsStore = create<SettingsState>()(
