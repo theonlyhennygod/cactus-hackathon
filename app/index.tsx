@@ -19,9 +19,9 @@ export default function HomeScreen() {
   useEffect(() => {
     const initBackgroundFetch = async () => {
       try {
-        const { registerBackgroundFetchAsync } = await import('@/utils/backgroundTasks');
-        if (registerBackgroundFetchAsync) {
-          await registerBackgroundFetchAsync();
+        const backgroundTasks = await import('@/utils/backgroundTasks') as any;
+        if (backgroundTasks?.registerBackgroundFetchAsync) {
+          await backgroundTasks.registerBackgroundFetchAsync();
         }
       } catch (error) {
         console.log('Background fetch not available:', error);

@@ -1,12 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as LocalAuthentication from 'expo-local-authentication';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import { Button } from '@/components/ui/Button';
 import { Colors, palette, radius, shadows, spacing, typography } from '@/constants/theme';
+
+// Dynamic import for local authentication (not available in Expo Go)
+let LocalAuthentication: typeof import('expo-local-authentication') | null = null;
+try {
+  LocalAuthentication = require('expo-local-authentication');
+} catch {
+  console.log('LocalAuthentication not available');
+}
 
 interface AuthGateProps {
   children: React.ReactNode;
@@ -23,6 +30,14 @@ export default function AuthGate({ children }: AuthGateProps) {
   }, []);
 
   const checkBiometricSupport = async () => {
+    // If LocalAuthentication is not available (Expo Go), skip auth
+    if (!LocalAuthentication) {
+      console.log('🔓 LocalAuthentication not available, skipping auth');
+      setIsAuthenticated(true);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const compatible = await LocalAuthentication.hasHardwareAsync();
       const enrolled = await LocalAuthentication.isEnrolledAsync();
@@ -52,6 +67,12 @@ export default function AuthGate({ children }: AuthGateProps) {
   };
 
   const authenticate = async () => {
+    if (!LocalAuthentication) {
+      setIsAuthenticated(true);
+      setIsLoading(false);
+      return;
+    }
+
     setError(null);
     setIsLoading(true);
 
