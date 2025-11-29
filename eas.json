@@ -4,7 +4,15 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "base": {
+      "android": {
+        "env": {
+          "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a"
+        }
+      }
+    },
     "development": {
+      "extends": "base",
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
@@ -12,24 +20,18 @@
       }
     },
     "preview": {
+      "extends": "base",
       "distribution": "internal",
       "ios": {
         "simulator": true
       },
       "android": {
-        "buildType": "apk",
-        "env": {
-          "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a"
-        }
+        "buildType": "apk"
       }
     },
     "production": {
-      "autoIncrement": true,
-      "android": {
-        "env": {
-          "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a"
-        }
-      }
+      "extends": "base",
+      "autoIncrement": true
     }
   },
   "submit": {
