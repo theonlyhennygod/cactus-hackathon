@@ -3,42 +3,37 @@ import { CactusLM } from 'cactus-react-native';
 /**
  * Model Manager - Handles loading and caching AI models
  * 
- * ⚠️ NOTE: Model files are 1.5GB total and too large to bundle in the app.
+ * Models are available in assets/models/ but Cactus SDK downloads models on first use.
+ * Total size: ~1.5GB (liquid-lfm: 697MB, qwen2.5: 469MB, echo-lnn: 219MB, audio: 74MB)
  * 
- * For this demo, we'll use mock/fallback AI responses since actual model loading
- * requires either:
- * 1. Downloading models from a CDN on first launch
- * 2. Using a smaller quantized model that CAN be bundled
- * 3. Running models on a server instead of on-device
- * 
- * The infrastructure is here and ready - just needs the models to be available.
+ * Note: The SDK's download() method fetches from Cactus CDN, not from bundled assets.
+ * For demo purposes, we'll use the default models.
  */
 
 const MODEL_CONFIGS = {
   vision: {
-    filename: 'liquid-lfm-small.gguf',
+    model: 'lfm2-vl-450m', // Vision-capable model for image analysis
   },
   audio: {
-    filename: 'audio-classifier.gguf',
+    model: 'whisper-small', // Audio transcription (use CactusSTT)
   },
   triage: {
-    filename: 'qwen2.5-0.5b-q4.gguf',
+    model: 'qwen3-0.6', // Default small LLM for triage/recommendations
   },
   echoLNN: {
-    filename: 'echo-lnn.gguf',
+    model: 'qwen3-0.6', // Fallback to LLM for time-series (Echo-LNN not in SDK)
   },
 };
 
 export type ModelType = keyof typeof MODEL_CONFIGS;
 
 class ModelManager {
-  private loadedModels: Map<ModelType, any> = new Map();
+  private loadedModels: Map<ModelType, CactusLM> = new Map();
+  private downloadedModels: Set<ModelType> = new Set();
 
   /**
    * Load a model using Cactus SDK
-   * 
-   * For now, this returns null and agents should use fallback logic.
-   * In production, this would load models from FileSystem.documentDirectory
+   * Models are downloaded on first use and cached thereafter
    */
   async loadModel(modelType: ModelType, cactusConfig?: any): Promise<CactusLM | null> {
     if (this.loadedModels.has(modelType)) {
@@ -46,11 +41,43 @@ class ModelManager {
       return this.loadedModels.get(modelType)!;
     }
 
-    console.warn(`⚠️ Model loading not implemented for ${modelType} - using fallback`);
-    console.log(`ℹ️  To enable on-device AI, implement model download/caching in ModelManager`);
-    
-    // Return null to signal agents to use fallback logic
-    return null;
+    try {
+      console.log(`📦 Initializing ${modelType} model...`);
+      const config = MODEL_CONFIGS[modelType];
+      
+      // Create CactusLM instance
+      const lm = new CactusLM({
+        model: config.model,
+        contextSize: cactusConfig?.contextSize || 2048,
+      });
+      
+      // Download model if not already downloaded
+      if (!this.downloadedModels.has(modelType)) {
+        console.log(`⬇️ Downloading ${modelType} model (${config.model})...`);
+        await lm.download({
+          onProgress: (progress) => {
+            if (progress % 0.1 < 0.01) { // Log every 10%
+              console.log(`📥 ${modelType}: ${Math.round(progress * 100)}%`);
+            }
+          },
+        });
+        this.downloadedModels.add(modelType);
+        console.log(`✅ ${modelType} model downloaded`);
+      }
+      
+      // Initialize the model for inference
+      console.log(`🚀 Initializing ${modelType} for inference...`);
+      await lm.init();
+      
+      this.loadedModels.set(modelType, lm);
+      console.log(`✅ ${modelType} model ready for use`);
+      
+      return lm;
+    } catch (error) {
+      console.error(`❌ Failed to load ${modelType} model:`, error);
+      console.log(`⚠️ Falling back to mock data for ${modelType}`);
+      return null;
+    }
   }
 
   /**
@@ -58,8 +85,8 @@ class ModelManager {
    */
   async unloadModel(modelType: ModelType): Promise<void> {
     const model = this.loadedModels.get(modelType);
-    if (model && model.unload) {
-      await model.unload();
+    if (model) {
+      await model.destroy();
     }
     this.loadedModels.delete(modelType);
     console.log(`🗑️ ${modelType} model unloaded`);
@@ -71,8 +98,8 @@ class ModelManager {
   async unloadAll(): Promise<void> {
     const entries = Array.from(this.loadedModels.entries());
     for (const [modelType, model] of entries) {
-      if (model && model.unload) {
-        await model.unload();
+      if (model) {
+        await model.destroy();
       }
     }
     this.loadedModels.clear();

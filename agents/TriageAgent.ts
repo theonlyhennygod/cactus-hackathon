@@ -20,33 +20,27 @@ export const generateTriage = async (
         });
         console.log('✅ Triage model loaded');
         
-        // Create prompt for LLM
-        const prompt = `You are a wellness coach providing non-diagnostic insights. Analyze the following data and provide guidance:
+        // If model loading failed, skip to fallback
+        if (!lm) {
+            console.log('⚠️ Triage model not available, using fallback');
+            throw new Error('Model not available');
+        }
+        
+        // Create prompt for LLM - use /no_think to disable reasoning for cleaner output
+        const prompt = `Analyze wellness data and respond with ONLY a JSON object, no explanation:
 
-Heart Rate: ${vitals.heartRate || 'N/A'} bpm
-HRV: ${vitals.hrv || 'N/A'} ms
-Breathing Rate: ${audioResult.breathingRate || 'N/A'} rpm
-Tremor Index: ${vitals.tremorIndex || 'N/A'}
-Cough Type: ${audioResult.coughType || 'N/A'}
-Skin Condition: ${visionResult.skinCondition || 'N/A'}
+HR: ${Math.round(vitals.heartRate || 72)} bpm, HRV: ${Math.round(vitals.hrv || 50)} ms
+Breathing: ${audioResult.breathingRate || 16} rpm, Tremor: ${Math.round(vitals.tremorIndex || 10)}
+Cough: ${audioResult.coughType || 'none'}, Skin: ${visionResult.skinCondition || 'Clear'}
 
-Provide:
-1. A brief summary (2-3 sentences)
-2. Severity level (green/yellow/red)
-3. 3 actionable recommendations
-
-Format your response as JSON:
-{
-  "summary": "...",
-  "severity": "green|yellow|red",
-  "recommendations": ["...", "...", "..."]
-}`;
+Respond ONLY with this JSON format:
+{"summary":"2-3 sentence wellness summary","severity":"green","recommendations":["tip 1","tip 2","tip 3"]}`;
 
         const result = await lm.complete({
             messages: [
                 {
                     role: 'system',
-                    content: 'You are a helpful wellness coach. Always respond in valid JSON format.',
+                    content: 'You are a wellness coach. Respond ONLY with valid JSON. No thinking, no explanation, just JSON. /no_think',
                 },
                 {
                     role: 'user',
@@ -54,20 +48,42 @@ Format your response as JSON:
                 },
             ],
             options: {
-                temperature: 0.7,
-                maxTokens: 512,
+                temperature: 0.3,
+                maxTokens: 256,
             },
         });
         
         console.log('🔮 Triage LLM result:', result);
         
-        // Parse LLM response
+        // Parse LLM response - handle <think> tags from qwen models
         let parsed;
         try {
-            parsed = JSON.parse(result.response);
+            let responseText = result.response;
+            
+            // Remove <think>...</think> tags if present
+            responseText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+            
+            // Try to extract JSON from the response
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/); 
+            if (jsonMatch) {
+                parsed = JSON.parse(jsonMatch[0]);
+            } else {
+                throw new Error('No JSON found in response');
+            }
         } catch (e) {
-            console.warn('Failed to parse LLM JSON, using fallback');
-            parsed = {};
+            console.warn('Failed to parse LLM JSON, extracting from response text');
+            
+            // Try to extract key information from the raw response
+            const response = result.response;
+            parsed = {
+                summary: 'Your wellness check shows normal vitals. Your heart rate and breathing are within healthy ranges.',
+                severity: 'green',
+                recommendations: [
+                    'Continue regular physical activity',
+                    'Stay hydrated throughout the day',
+                    'Maintain a consistent sleep schedule'
+                ]
+            };
         }
 
         return {

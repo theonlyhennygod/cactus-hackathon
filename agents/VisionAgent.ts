@@ -19,6 +19,12 @@ export const analyzeImage = async (imageUri: string): Promise<VisionResult> => {
         });
         console.log('✅ Vision model loaded');
         
+        // If model loading failed, skip to fallback
+        if (!lm) {
+            console.log('⚠️ Vision model not available, using fallback');
+            throw new Error('Model not available');
+        }
+        
         // Run Cactus SDK inference with multimodal input
         const result = await lm.complete({
             messages: [
