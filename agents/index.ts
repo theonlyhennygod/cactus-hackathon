@@ -12,7 +12,7 @@
 
 export { analyzeAudio, type AudioResult } from './AudioAgent';
 export { analyzeTimeSeries, type EchoLNNResult } from './EchoLNNAgent';
-export { getBaseline, getHistory, saveSession, type WellnessSession } from './MemoryAgent';
+export { getBaseline, getHistory, getHistorySummary, getTrendInsights, saveSession, type BaselineData, type TrendInsight, type WellnessSession } from './MemoryAgent';
 export { runWellnessCheck } from './Orchestrator';
 export { generateTriage, type TriageResult } from './TriageAgent';
 export { analyzeImage, type VisionResult } from './VisionAgent';

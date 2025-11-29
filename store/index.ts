@@ -24,6 +24,7 @@ interface VitalsState {
   summary: string | null;
   severity: 'green' | 'yellow' | 'red' | null;
   recommendations: string[] | null;
+  inferenceType: 'local' | 'cloud' | 'fallback' | null;
   // Methods
   setVitals: (vitals: Partial<Omit<VitalsState, 'setVitals' | 'reset'>>) => void;
   reset: () => void;
@@ -59,6 +60,7 @@ export const useVitalsStore = create<VitalsState>((set) => ({
   summary: null,
   severity: null,
   recommendations: null,
+  inferenceType: null,
   // Methods
   setVitals: (vitals) => set((state) => ({ ...state, ...vitals })),
   reset: () => set({ 
@@ -71,6 +73,7 @@ export const useVitalsStore = create<VitalsState>((set) => ({
     summary: null,
     severity: null,
     recommendations: null,
+    inferenceType: null,
   }),
 }));
 

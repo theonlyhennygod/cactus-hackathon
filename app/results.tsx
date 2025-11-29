@@ -1,13 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { getTrendInsights, type TrendInsight } from '@/agents/MemoryAgent';
+import { AIStatusBadge } from '@/components/ui/AIStatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
 import { VitalCard } from '@/components/ui/VitalCard';
 import { Colors, palette, radius, shadows, spacing, typography } from '@/constants/theme';
 import { useCheckInStore, useVitalsStore } from '@/store';
@@ -50,6 +53,22 @@ export default function ResultsScreen() {
   const router = useRouter();
   const vitals = useVitalsStore();
   const { reset } = useCheckInStore();
+  const [trendInsights, setTrendInsights] = useState<TrendInsight[]>([]);
+
+  // Load trend insights on mount
+  useEffect(() => {
+    const loadInsights = async () => {
+      const insights = await getTrendInsights({
+        heartRate: vitals.heartRate ?? undefined,
+        hrv: vitals.hrv ?? undefined,
+        breathingRate: vitals.breathingRate ?? undefined,
+        tremorIndex: vitals.tremorIndex ?? undefined,
+        coughType: vitals.coughType ?? undefined,
+      });
+      setTrendInsights(insights);
+    };
+    loadInsights();
+  }, [vitals]);
 
   const handleDone = () => {
     reset();
@@ -115,6 +134,9 @@ export default function ResultsScreen() {
             </View>
           </LinearGradient>
         </Animated.View>
+
+        {/* Offline Indicator */}
+        <OfflineIndicator />
 
         {/* Vitals Grid */}
         <Text style={styles.sectionTitle}>Your Vitals</Text>
@@ -182,6 +204,7 @@ export default function ResultsScreen() {
                 />
               </View>
               <Text style={styles.triageTitle}>AI Health Summary</Text>
+              <AIStatusBadge inferenceType={vitals.inferenceType || 'fallback'} />
             </View>
             <Text style={styles.triageText}>
               {vitals.summary || `Based on your vitals, everything looks ${overall.status === 'great' ? 'excellent' : 'stable'}. Consider staying hydrated and maintaining your current wellness routine.`}
@@ -207,6 +230,35 @@ export default function ResultsScreen() {
             </View>
           </Card>
         </Animated.View>
+
+        {/* Trend Insights - Memory Track Feature */}
+        {trendInsights.length > 0 && (
+          <Animated.View entering={FadeInUp.delay(600).duration(500).springify()}>
+            <Card variant="filled" padding="md" style={styles.trendsCard}>
+              <View style={styles.trendsHeader}>
+                <View style={styles.trendsIconContainer}>
+                  <Ionicons name="trending-up" size={20} color={Colors.light.primary} />
+                </View>
+                <Text style={styles.trendsTitle}>Your Trends</Text>
+              </View>
+              <View style={styles.trendsList}>
+                {trendInsights.map((insight, index) => (
+                  <View key={index} style={styles.trendItem}>
+                    <Ionicons 
+                      name={insight.isPositive ? 'arrow-up-circle' : 'arrow-down-circle'} 
+                      size={18} 
+                      color={insight.isPositive ? palette.success[500] : palette.warning[500]} 
+                    />
+                    <View style={styles.trendContent}>
+                      <Text style={styles.trendMetric}>{insight.metric}</Text>
+                      <Text style={styles.trendMessage}>{insight.message}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </Card>
+          </Animated.View>
+        )}
 
         {/* Action Buttons */}
         <Animated.View 
@@ -362,5 +414,49 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginTop: spacing.md,
+  },
+  trendsCard: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  trendsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  trendsIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.md,
+    backgroundColor: Colors.light.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  trendsTitle: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    color: Colors.light.text,
+  },
+  trendsList: {
+    gap: spacing.sm,
+  },
+  trendItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  trendContent: {
+    flex: 1,
+  },
+  trendMetric: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.medium,
+    color: Colors.light.text,
+  },
+  trendMessage: {
+    fontSize: typography.size.sm,
+    color: Colors.light.textSecondary,
+    lineHeight: typography.size.sm * typography.lineHeight.relaxed,
   },
 });

@@ -18,9 +18,7 @@ export const analyzeTimeSeries = async (
 
     try {
         // Load the Echo-LNN model
-        const lm = await modelManager.loadModel('echoLNN', {
-            contextSize: 1024,
-        });
+        const lm = await modelManager.loadModel('echoLNN');
         console.log('✅ Echo-LNN model loaded');
         
         // Note: CactusLM is primarily for LLM/vision tasks

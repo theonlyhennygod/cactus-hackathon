@@ -9,6 +9,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 // import HealthTrends from '@/components/HealthTrends'; // Disabled - requires dev build
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ModelDownloadProgress } from '@/components/ui/ModelDownloadProgress';
+import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
 import { Colors, palette, radius, shadows, spacing, typography } from '@/constants/theme';
 
 export default function HomeScreen() {
@@ -67,6 +69,10 @@ export default function HomeScreen() {
             Private, offline wellness checks powered by on-device AI
           </Text>
         </Animated.View>
+
+        {/* Network & Model Status */}
+        <OfflineIndicator />
+        <ModelDownloadProgress />
 
         {/* Main CTA Card */}
         <Animated.View entering={FadeInUp.delay(200).duration(600).springify()}>
