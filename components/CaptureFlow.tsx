@@ -337,40 +337,74 @@ export default function CaptureFlow() {
     accelData: AccelerometerData[]
   ) => {
     try {
-      setProcessingStatus('Analyzing face scan...');
-      console.log('🤖 Starting AI agent processing...');
-      console.log('📷 Image URI:', imageUri);
-      console.log('🎤 Audio URI:', audioUri);
-      console.log('📊 Accel data points:', accelData.length);
+      console.log('\n' + '='.repeat(50));
+      console.log('🤖 POCKET DOCTOR - AI AGENT PROCESSING');
+      console.log('='.repeat(50));
+      
+      console.log('\n📥 INPUT DATA:');
+      console.log('  📷 Image URI:', imageUri ? '✓ Captured' : '✗ Not available');
+      console.log('  🎤 Audio URI:', audioUri ? '✓ Recorded' : '✗ Not available');
+      console.log('  📊 Accelerometer:', accelData.length, 'data points');
       
       // 1. Vision Agent - analyze face image
+      console.log('\n' + '-'.repeat(50));
+      console.log('👁️ VISION AGENT - Face Analysis');
+      console.log('-'.repeat(50));
+      setProcessingStatus('Analyzing face scan...');
       const visionResult = await analyzeImage(imageUri || '');
-      console.log('✅ Vision analysis:', visionResult);
+      console.log('  Skin Condition:', visionResult.skinCondition);
+      console.log('  Expression:', visionResult.faceAttributes?.expression);
+      console.log('  Confidence:', (visionResult.confidence * 100).toFixed(1) + '%');
       
-      setProcessingStatus('Analyzing audio...');
       // 2. Audio Agent - analyze cough/breathing
+      console.log('\n' + '-'.repeat(50));
+      console.log('🎤 AUDIO AGENT - Respiratory Analysis');
+      console.log('-'.repeat(50));
+      setProcessingStatus('Analyzing audio...');
       const audioResult = await analyzeAudio(audioUri || '');
-      console.log('✅ Audio analysis:', audioResult);
+      console.log('  Breathing Rate:', audioResult.breathingRate, 'rpm');
+      console.log('  Cough Type:', audioResult.coughType);
+      console.log('  Confidence:', (audioResult.confidence * 100).toFixed(1) + '%');
+      if (audioResult.transcription) {
+        console.log('  Transcription:', audioResult.transcription);
+      }
       
-      setProcessingStatus('Analyzing motion data...');
       // 3. Echo-LNN Agent - analyze time series (PPG + accelerometer)
+      console.log('\n' + '-'.repeat(50));
+      console.log('📈 ECHO-LNN AGENT - Time-Series Analysis');
+      console.log('-'.repeat(50));
+      setProcessingStatus('Analyzing motion data...');
       const echoResult = await analyzeTimeSeries([], accelData);
-      console.log('✅ Time-series analysis:', echoResult);
+      console.log('  Heart Rate:', echoResult.heartRate.toFixed(1), 'bpm');
+      console.log('  HRV:', echoResult.hrv.toFixed(1), 'ms');
+      console.log('  Tremor Index:', echoResult.tremorIndex.toFixed(3));
+      console.log('  Data Quality:', (echoResult.quality * 100).toFixed(0) + '%');
       
       // Update vitals store with agent results
-      setVitals({
+      const vitalsData = {
         heartRate: Math.round(echoResult.heartRate),
         hrv: Math.round(echoResult.hrv),
         breathingRate: audioResult.breathingRate,
         coughType: audioResult.coughType,
         tremorIndex: echoResult.tremorIndex,
         skinCondition: visionResult.skinCondition,
-      });
+      };
+      setVitals(vitalsData);
       
-      setProcessingStatus('Generating recommendations...');
+      console.log('\n📊 VITALS STORED:', JSON.stringify(vitalsData, null, 2));
+      
       // 4. Triage Agent - generate wellness recommendations
+      console.log('\n' + '-'.repeat(50));
+      console.log('🏥 TRIAGE AGENT - Wellness Assessment');
+      console.log('-'.repeat(50));
+      setProcessingStatus('Generating recommendations...');
       const triageResult = await generateTriage(echoResult, visionResult, audioResult);
-      console.log('✅ Triage result:', triageResult);
+      console.log('  Severity:', triageResult.severity.toUpperCase());
+      console.log('  Summary:', triageResult.summary);
+      console.log('  Recommendations:');
+      triageResult.recommendations.forEach((rec, i) => {
+        console.log(`    ${i + 1}. ${rec}`);
+      });
       
       // Save session to memory
       await saveSession({
@@ -386,12 +420,16 @@ export default function CaptureFlow() {
         recommendations: triageResult.recommendations,
       });
       
-      console.log('🎉 AI processing complete!');
+      console.log('\n' + '='.repeat(50));
+      console.log('✅ AI PROCESSING COMPLETE');
+      console.log('='.repeat(50));
+      console.log('Session saved to memory. Navigating to results...\n');
+      
       setStep('results');
       router.replace('/results');
       
     } catch (error) {
-      console.error('❌ Agent processing error:', error);
+      console.error('\n❌ AGENT PROCESSING ERROR:', error);
       // Fallback to results with default values
       setVitals({
         heartRate: 72,
