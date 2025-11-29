@@ -10,15 +10,24 @@ import HealthTrends from '@/components/HealthTrends';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Colors, palette, radius, shadows, spacing, typography } from '@/constants/theme';
-import { registerBackgroundFetchAsync } from '@/utils/backgroundTasks';
 
 export default function HomeScreen() {
   const router = useRouter();
   const colors = Colors.light;
 
-  // Register background fetch on app launch
+  // Register background fetch on app launch (safely)
   useEffect(() => {
-    registerBackgroundFetchAsync();
+    const initBackgroundFetch = async () => {
+      try {
+        const { registerBackgroundFetchAsync } = await import('@/utils/backgroundTasks');
+        if (registerBackgroundFetchAsync) {
+          await registerBackgroundFetchAsync();
+        }
+      } catch (error) {
+        console.log('Background fetch not available:', error);
+      }
+    };
+    initBackgroundFetch();
   }, []);
 
   const features = [
