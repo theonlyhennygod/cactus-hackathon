@@ -351,7 +351,7 @@ export default function EmotionScanScreen() {
             {/* Inference type badge */}
             <View style={styles.inferenceBadge}>
               <Ionicons 
-                name={emotionResult.inferenceType === 'local' ? 'phone-portrait' : 'cloud'} 
+                name={emotionResult.inferenceType === 'local' ? 'hardware-chip' : 'analytics'} 
                 size={14} 
                 color={palette.neutral[500]} 
               />

@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Colors, palette, radius, spacing, typography } from '@/constants/theme';
+import { palette, radius, spacing, typography } from '@/constants/theme';
 
 interface AIStatusBadgeProps {
   inferenceType: 'local' | 'cloud' | 'fallback';
@@ -19,7 +18,7 @@ export function AIStatusBadge({ inferenceType, compact = false }: AIStatusBadgeP
     },
     cloud: {
       icon: 'cloud' as const,
-      label: 'Cloud AI',
+      label: 'Gemini AI',
       color: palette.primary[500],
       bgColor: palette.primary[50],
     },

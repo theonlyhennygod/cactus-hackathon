@@ -16,7 +16,7 @@ export interface WellnessSession {
         summary?: string;
         severity?: 'green' | 'yellow' | 'red';
         recommendations?: string[];
-        inferenceType?: 'local' | 'cloud' | 'fallback';
+        inferenceType?: 'local' | 'fallback';
     };
 }
 

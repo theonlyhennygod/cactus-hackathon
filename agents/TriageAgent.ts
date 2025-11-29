@@ -1,24 +1,28 @@
 
+import { modelManager } from '../utils/modelManager';
+
 export interface TriageResult {
     summary: string;
     severity: 'green' | 'yellow' | 'red';
     recommendations: string[];
-    inferenceType: 'local' | 'cloud' | 'fallback';
+    inferenceType: 'local' | 'fallback';
 }
 
 /**
- * Generate wellness triage using local rule-based analysis
- * LOCAL-ONLY STRATEGY: No cloud API for recommendations - privacy first.
- * All analysis happens on-device for consistent, reliable results.
+ * Generate wellness triage using local Cactus LLM (Qwen)
+ * LOCAL-ONLY STRATEGY: All analysis happens on-device for privacy
+ * No cloud fallback - data never leaves the device
  */
 export const generateTriage = async (
     vitals: any,
     visionResult: any,
     audioResult: any
 ): Promise<TriageResult> => {
-    console.log('TriageAgent: Generating recommendations based on', { vitals, visionResult, audioResult });
+    console.log('TriageAgent: Generating recommendations (on-device)');
+    console.log('🔒 Privacy mode: All processing happens locally');
+    console.log('Input data:', { vitals, visionResult, audioResult });
 
-    // Extract values with defaults - using mood-based data instead of heart rate
+    // Extract values with defaults
     const moodScore = vitals.moodScore ?? 50;
     const overallMood = vitals.overallMood ?? 'neutral';
     const facialEmotion = vitals.facialEmotion ?? 'neutral';
@@ -28,11 +32,82 @@ export const generateTriage = async (
     const coughType = audioResult?.coughType ?? 'none';
     const skinCondition = visionResult?.skinCondition ?? vitals.skinCondition ?? 'Normal';
 
-    // === STRATEGY 1: Local On-Device Inference (PRIMARY) ===
-    // Note: Qwen3 has a thinking mode that's hard to disable, so we use
-    // rule-based analysis which is also fully local and provides consistent results
-    console.log('🤖 Using local rule-based analysis (on-device, no cloud)...');
-    
+    // === LOCAL-ONLY: Try Cactus LLM (Qwen) first ===
+    try {
+        console.log('🤖 Loading local Qwen model for triage (on-device)...');
+        const lm = await modelManager.loadModel('triage');
+        
+        if (lm) {
+            console.log('✅ Qwen model loaded - running on-device inference!');
+            
+            // Qwen3 thinks first then outputs - need enough tokens for both
+            const prompt = `Input: mood=${moodScore}, tremor=${tremor.toFixed(1)}, breathing=${breathing}
+Output JSON: {"summary":"brief health note","severity":"green","recommendations":["tip1","tip2"]}`;
+
+            try {
+                const response = await lm.complete({
+                    messages: [
+                        { role: 'user', content: prompt }
+                    ],
+                    options: {
+                        maxTokens: 10000,   // Need enough for thinking + output
+                        temperature: 0.0,
+                    },
+                });
+                
+                const responseText = response.response || '';
+                console.log('🔮 Qwen raw response length:', responseText.length);
+                
+                // Extract content AFTER </think> tag if present
+                let cleanedResponse = responseText;
+                const thinkEndIndex = responseText.indexOf('</think>');
+                if (thinkEndIndex !== -1) {
+                    cleanedResponse = responseText.substring(thinkEndIndex + 8).trim();
+                    console.log('🔮 Extracted post-think content:', cleanedResponse.substring(0, 200));
+                } else {
+                    // No closing think tag - remove opening and everything after
+                    cleanedResponse = responseText
+                        .replace(/<think>[\s\S]*/gi, '')
+                        .trim();
+                }
+                
+                // Clean up markdown code blocks
+                cleanedResponse = cleanedResponse
+                    .replace(/```json/gi, '')
+                    .replace(/```/g, '')
+                    .trim();
+                
+                // Parse JSON from response
+                const jsonMatch = cleanedResponse.match(/\{[\s\S]*?\}/);
+                if (jsonMatch) {
+                    try {
+                        const parsed = JSON.parse(jsonMatch[0]);
+                        if (parsed.summary || parsed.severity || parsed.recommendations) {
+                            console.log('✅ Qwen JSON parsed successfully (on-device)');
+                            return {
+                                summary: parsed.summary || 'Wellness check complete.',
+                                severity: ['green', 'yellow', 'red'].includes(parsed.severity) ? parsed.severity : 'green',
+                                recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations.slice(0, 3) : ['Stay hydrated', 'Get rest'],
+                                inferenceType: 'local',
+                            };
+                        }
+                    } catch (parseErr) {
+                        console.log('⚠️ JSON parse failed:', parseErr);
+                    }
+                }
+                console.log('⚠️ No valid JSON found in Qwen response, cleaned:', cleanedResponse.substring(0, 100));
+            } catch (inferenceError) {
+                console.warn('Qwen inference failed:', inferenceError);
+            }
+        } else {
+            console.log('⚠️ Qwen model not available, using intelligent fallback');
+        }
+    } catch (error) {
+        console.warn('Triage model error:', error);
+    }
+
+    // === FALLBACK: Rule-based analysis (still local, no cloud) ===
+    console.log('📱 Using intelligent rule-based triage (on-device)');
     return generateRuleBasedTriage(moodScore, overallMood, facialEmotion, voiceEmotion, tremor, breathing, skinCondition);
 };
 
@@ -166,5 +241,5 @@ function generateRuleBasedTriage(
     
     recommendations.push('Stay hydrated with 8 glasses of water daily');
     
-    return { summary, severity, recommendations: recommendations.slice(0, 4), inferenceType: 'local' };
+    return { summary, severity, recommendations: recommendations.slice(0, 4), inferenceType: 'fallback' };
 }

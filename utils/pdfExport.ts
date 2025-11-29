@@ -1,48 +1,43 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-
-// Gemini API for AI-generated summary
-const GEMINI_API_KEY = 'AIzaSyCZfkmUYe0w1rs6cj08qt_bFIKWx8Fzbco';
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+import { modelManager } from './modelManager';
 
 /**
- * Generate AI summary for PDF using Gemini
+ * Generate AI summary for PDF using local Cactus LLM
+ * LOCAL-ONLY: No cloud API calls - all processing on-device
  */
 async function generateAISummary(vitals: any): Promise<string> {
     try {
-        const prompt = `Create a brief, professional wellness report summary (2-3 sentences) based on this data:
-- Overall Mood: ${vitals.overallMood || 'Not assessed'}
-- Mood Score: ${vitals.moodScore ? `${vitals.moodScore}/10` : 'Not assessed'}
-- Facial Expression: ${vitals.facialEmotion || 'Not captured'}
-- Voice Tone: ${vitals.voiceEmotion || 'Not captured'}
-- Breathing Rate: ${vitals.breathingRate ? `${vitals.breathingRate} rpm` : 'Not measured'}
-- Tremor Index: ${vitals.tremorIndex ? vitals.tremorIndex.toFixed(2) : 'Not measured'}
-- Skin Condition: ${vitals.skinCondition || 'Not analyzed'}
+        // Try local LLM first
+        const lm = await modelManager.loadModel('triage');
+        
+        if (lm) {
+            console.log('📄 Generating PDF summary with local AI...');
+            
+            const prompt = `Create a brief wellness report summary (2-3 sentences) based on:
+- Mood: ${vitals.overallMood || 'Not assessed'} (Score: ${vitals.moodScore || 'N/A'}/100)
+- Breathing: ${vitals.breathingRate ? `${vitals.breathingRate} rpm` : 'Not measured'}
+- Tremor: ${vitals.tremorIndex ? vitals.tremorIndex.toFixed(2) : 'Not measured'}
+- Skin: ${vitals.skinCondition || 'Not analyzed'}
 
-AI Analysis: ${vitals.summary || 'No analysis available'}
-Severity: ${vitals.severity || 'unknown'}
+Be compassionate and supportive. Do NOT give medical advice. Keep it brief.`;
 
-Write a compassionate, supportive summary. Do NOT give medical advice.`;
-
-        const response = await fetch(GEMINI_ENDPOINT, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-goog-api-key': GEMINI_API_KEY,
-            },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0.7, maxOutputTokens: 150 },
-            }),
-        });
-
-        if (!response.ok) {
-            console.warn('Gemini PDF summary failed:', response.status);
-            return vitals.summary || 'Wellness check completed. Please consult a healthcare provider for medical advice.';
+            const response = await lm.complete({
+                messages: [
+                    { role: 'system', content: 'You are a wellness coach writing a brief PDF summary. Be supportive and concise.' },
+                    { role: 'user', content: prompt }
+                ],
+                options: {
+                    maxTokens: 150,
+                    temperature: 0.7,
+                },
+            });
+            
+            return response.response || vitals.summary || 'Wellness check completed.';
         }
-
-        const data = await response.json();
-        return data.candidates?.[0]?.content?.parts?.[0]?.text || vitals.summary || 'Wellness check completed.';
+        
+        // Fallback to existing summary or default message
+        return vitals.summary || 'Wellness check completed. All metrics have been recorded for your reference.';
     } catch (error) {
         console.warn('AI summary generation failed:', error);
         return vitals.summary || 'Wellness check completed. Please consult a healthcare provider for medical advice.';
@@ -85,8 +80,7 @@ export const generateAndSharePDF = async (vitals: any) => {
     const severityColor = getSeverityColor(vitals.severity);
     const moodEmoji = getMoodEmoji(vitals.overallMood);
     const inferenceLabel = vitals.inferenceType === 'local' ? '🔒 On-Device AI' 
-        : vitals.inferenceType === 'cloud' ? '☁️ Cloud AI' 
-        : '📱 Basic Analysis';
+        : '📱 Local Analysis';
 
     const html = `
     <html>

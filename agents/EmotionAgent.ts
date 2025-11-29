@@ -15,12 +15,8 @@ export interface EmotionResult {
     overallMood: EmotionType;
     moodScore: number; // 0-100 (100 = very positive)
     moodDescription: string;
-    inferenceType: 'local' | 'cloud' | 'fallback';
+    inferenceType: 'local' | 'fallback';
 }
-
-// Gemini API for cloud fallback
-const GEMINI_API_KEY = 'AIzaSyCZfkmUYe0w1rs6cj08qt_bFIKWx8Fzbco';
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 // Emotion questions to prompt the user
 export const EMOTION_QUESTIONS = [
@@ -48,7 +44,7 @@ const getSTTModel = async (): Promise<CactusSTT | null> => {
         }
         
         if (!sttDownloaded) {
-            console.log('⬇️ Downloading whisper-small for emotion analysis...');
+            console.log('⬇️ Downloading whisper-small for emotion analysis (on-device)...');
             await sttInstance.download({
                 onProgress: (progress) => {
                     if (progress % 0.25 < 0.01) {
@@ -57,7 +53,7 @@ const getSTTModel = async (): Promise<CactusSTT | null> => {
                 },
             });
             sttDownloaded = true;
-            console.log('✅ Whisper model ready');
+            console.log('✅ Whisper model ready (local inference)');
         }
         
         await sttInstance.init();
@@ -77,81 +73,28 @@ export const getRandomQuestion = (): string => {
 };
 
 /**
- * Call Gemini API for emotion analysis (cloud fallback)
- */
-async function analyzeEmotionWithGemini(prompt: string): Promise<{
-    emotion: EmotionType;
-    confidence: number;
-} | null> {
-    try {
-        console.log('☁️ Calling Gemini API for emotion analysis...');
-        
-        const response = await fetch(GEMINI_ENDPOINT, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-goog-api-key': GEMINI_API_KEY,
-            },
-            body: JSON.stringify({
-                contents: [
-                    {
-                        parts: [{ text: prompt }],
-                    },
-                ],
-                generationConfig: {
-                    temperature: 0.3,
-                    maxOutputTokens: 50,
-                },
-            }),
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.warn('Gemini API error:', response.status, errorText);
-            return null;
-        }
-
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.toLowerCase() || '';
-        
-        console.log('☁️ Gemini emotion response:', text);
-        
-        // Parse emotion from response
-        let emotion: EmotionType = 'neutral';
-        if (text.includes('happy') || text.includes('joy') || text.includes('positive')) emotion = 'happy';
-        else if (text.includes('sad') || text.includes('unhappy') || text.includes('down')) emotion = 'sad';
-        else if (text.includes('angry') || text.includes('anger') || text.includes('mad')) emotion = 'angry';
-        else if (text.includes('anxious') || text.includes('nervous') || text.includes('worried') || text.includes('stress')) emotion = 'anxious';
-        else if (text.includes('calm') || text.includes('relaxed') || text.includes('peaceful')) emotion = 'calm';
-        
-        return { emotion, confidence: 0.8 };
-    } catch (error) {
-        console.warn('Gemini emotion analysis failed:', error);
-        return null;
-    }
-}
-
-/**
  * Analyze facial expression from image using local vision model
- * Falls back to Gemini cloud API if local model fails
+ * LOCAL-ONLY STRATEGY: All analysis happens on-device for privacy
+ * No cloud fallback - data never leaves the device
  */
 export const analyzeFacialEmotion = async (imageUri: string): Promise<{
     emotion: EmotionType;
     confidence: number;
-    inferenceType: 'local' | 'cloud' | 'fallback';
+    inferenceType: 'local' | 'fallback';
 }> => {
-    console.log('😊 Analyzing facial expression...');
+    console.log('😊 Analyzing facial expression (on-device)...');
+    console.log('🔒 Privacy mode: All processing happens locally');
 
     if (!imageUri) {
         return { emotion: 'neutral', confidence: 0.3, inferenceType: 'fallback' };
     }
 
     try {
-        // Strategy 1: Try local vision model first
+        // LOCAL-ONLY: Try local vision model
         const lm = await modelManager.loadModel('vision');
         
         if (lm) {
-            console.log('✅ Vision model loaded for emotion detection');
+            console.log('✅ Vision model loaded for emotion detection (on-device)');
             
             try {
                 const response = await lm.complete({
@@ -169,7 +112,7 @@ export const analyzeFacialEmotion = async (imageUri: string): Promise<{
                 });
                 
                 const text = response.response.toLowerCase().trim();
-                console.log('🎭 Facial emotion response:', text);
+                console.log('🎭 Facial emotion response (local):', text);
                 
                 // Parse emotion from response
                 let emotion: EmotionType = 'neutral';
@@ -184,20 +127,12 @@ export const analyzeFacialEmotion = async (imageUri: string): Promise<{
             } catch (inferenceError) {
                 console.warn('Vision inference failed:', inferenceError);
             }
+        } else {
+            console.log('⚠️ Vision model not available, using intelligent fallback');
         }
         
-        // Strategy 2: Gemini cloud fallback
-        console.log('☁️ Using Gemini cloud for facial emotion...');
-        const geminiResult = await analyzeEmotionWithGemini(
-            'Based on common facial expressions, what emotion would a person likely be showing? Consider that most people in selfies tend to be relaxed or slightly positive. Reply with ONLY ONE word: happy, sad, angry, anxious, neutral, or calm.'
-        );
-        
-        if (geminiResult) {
-            return { ...geminiResult, inferenceType: 'cloud' };
-        }
-        
-        // Strategy 3: Intelligent fallback
-        console.log('📱 Using facial analysis fallback');
+        // FALLBACK: Intelligent defaults (still local, no cloud)
+        console.log('📱 Using facial analysis fallback (on-device)');
         return { 
             emotion: 'neutral', 
             confidence: 0.5, 
@@ -212,15 +147,17 @@ export const analyzeFacialEmotion = async (imageUri: string): Promise<{
 
 /**
  * Analyze voice/speech for emotional content using transcription + sentiment
- * Falls back to Gemini cloud API if local model fails
+ * LOCAL-ONLY STRATEGY: All analysis happens on-device for privacy
+ * No cloud fallback - data never leaves the device
  */
 export const analyzeVoiceEmotion = async (audioUri: string): Promise<{
     emotion: EmotionType;
     confidence: number;
     transcription: string;
-    inferenceType: 'local' | 'cloud' | 'fallback';
+    inferenceType: 'local' | 'fallback';
 }> => {
-    console.log('🎤 Analyzing voice emotion...');
+    console.log('🎤 Analyzing voice emotion (on-device)...');
+    console.log('🔒 Privacy mode: All processing happens locally');
 
     if (!audioUri) {
         return { 
@@ -234,12 +171,12 @@ export const analyzeVoiceEmotion = async (audioUri: string): Promise<{
     let transcription = '';
 
     try {
-        // First, transcribe the audio using CactusSTT
+        // LOCAL-ONLY: Transcribe audio using CactusSTT (Whisper)
         try {
             const stt = await getSTTModel();
             
             if (stt) {
-                console.log('✅ STT model loaded for voice analysis');
+                console.log('✅ STT model loaded for voice analysis (on-device)');
                 
                 try {
                     const result = await stt.transcribe({
@@ -247,9 +184,8 @@ export const analyzeVoiceEmotion = async (audioUri: string): Promise<{
                         options: { maxTokens: 256 },
                     });
                     transcription = result.response || '';
-                    console.log('📝 Voice transcription:', transcription);
+                    console.log('📝 Voice transcription (local):', transcription);
                 } catch (transcribeError) {
-                    // Transcribe can throw runtime errors - catch them here
                     console.log('ℹ️ Transcription failed:', transcribeError instanceof Error ? transcribeError.message : 'unknown error');
                     transcription = '';
                 }
@@ -257,12 +193,11 @@ export const analyzeVoiceEmotion = async (audioUri: string): Promise<{
                 console.log('ℹ️ STT not available, using keyword fallback');
             }
         } catch (sttError) {
-            // STT can fail on simulator or incompatible devices - this is expected
             console.log('ℹ️ STT transcription failed, using keyword fallback');
             transcription = '';
         }
         
-        // Strategy 1: Local model analysis
+        // LOCAL-ONLY: Analyze sentiment with local LLM
         if (transcription && transcription.length > 3) {
             try {
                 const lm = await modelManager.loadModel('triage');
@@ -286,7 +221,7 @@ export const analyzeVoiceEmotion = async (audioUri: string): Promise<{
                     });
                     
                     const text = response.response.toLowerCase().trim();
-                    console.log('🎭 Voice emotion analysis:', text);
+                    console.log('🎭 Voice emotion analysis (local):', text);
                     
                     let emotion: EmotionType = 'neutral';
                     if (text.includes('happy') || text.includes('joy') || text.includes('positive')) emotion = 'happy';
@@ -301,32 +236,10 @@ export const analyzeVoiceEmotion = async (audioUri: string): Promise<{
             } catch (sentimentError) {
                 console.warn('Local sentiment analysis failed:', sentimentError);
             }
-            
-            // Strategy 2: Gemini cloud fallback for transcribed text
-            console.log('☁️ Using Gemini cloud for voice sentiment...');
-            const geminiResult = await analyzeEmotionWithGemini(
-                `Analyze the emotion in this spoken response: "${transcription}". Reply with ONLY ONE word: happy, sad, angry, anxious, neutral, or calm.`
-            );
-            
-            if (geminiResult) {
-                return { ...geminiResult, transcription, inferenceType: 'cloud' };
-            }
         }
         
-        // Strategy 3: Gemini cloud fallback (no transcription available)
-        if (!transcription || transcription.length <= 3) {
-            console.log('☁️ Using Gemini cloud for general voice sentiment...');
-            const geminiResult = await analyzeEmotionWithGemini(
-                'A person just recorded a voice message about how they are feeling. Based on typical responses, what emotion might they be expressing? Reply with ONLY ONE word: happy, sad, angry, anxious, neutral, or calm.'
-            );
-            
-            if (geminiResult) {
-                return { ...geminiResult, transcription: '', inferenceType: 'cloud' };
-            }
-        }
-        
-        // Strategy 4: Keyword-based fallback (if we have text but no AI worked)
-        console.log('📱 Using voice emotion keyword fallback');
+        // FALLBACK: Keyword-based analysis (still local, no cloud)
+        console.log('📱 Using voice emotion keyword fallback (on-device)');
         const lowerText = transcription.toLowerCase();
         
         let emotion: EmotionType = 'neutral';
@@ -351,12 +264,14 @@ export const analyzeVoiceEmotion = async (audioUri: string): Promise<{
 
 /**
  * Combine facial and voice analysis for overall emotion assessment
+ * LOCAL-ONLY STRATEGY: All analysis happens on-device for privacy
  */
 export const analyzeEmotion = async (
     imageUri: string,
     audioUri: string
 ): Promise<EmotionResult> => {
-    console.log('🧠 Running full emotion analysis...');
+    console.log('🧠 Running full emotion analysis (on-device)...');
+    console.log('🔒 Privacy mode: No data leaves your device');
     
     // Run both analyses in parallel
     const [facialResult, voiceResult] = await Promise.all([
@@ -364,8 +279,8 @@ export const analyzeEmotion = async (
         analyzeVoiceEmotion(audioUri),
     ]);
     
-    console.log('📊 Facial:', facialResult);
-    console.log('📊 Voice:', voiceResult);
+    console.log('📊 Facial (local):', facialResult);
+    console.log('📊 Voice (local):', voiceResult);
     
     // Combine results - weight voice slightly higher as it's more explicit
     const facialWeight = 0.4;
@@ -418,12 +333,10 @@ export const analyzeEmotion = async (
         overallMood = facialResult.emotion;
     }
     
-    // Determine inference type: local > cloud > fallback
-    let inferenceType: 'local' | 'cloud' | 'fallback' = 'fallback';
+    // Determine inference type: local > fallback (no cloud option)
+    let inferenceType: 'local' | 'fallback' = 'fallback';
     if (facialResult.inferenceType === 'local' || voiceResult.inferenceType === 'local') {
         inferenceType = 'local';
-    } else if (facialResult.inferenceType === 'cloud' || voiceResult.inferenceType === 'cloud') {
-        inferenceType = 'cloud';
     }
     
     const result: EmotionResult = {
@@ -438,6 +351,6 @@ export const analyzeEmotion = async (
         inferenceType,
     };
     
-    console.log('✅ Emotion analysis complete:', result);
+    console.log('✅ Emotion analysis complete (all on-device):', result);
     return result;
 };

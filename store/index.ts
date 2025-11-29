@@ -33,7 +33,7 @@ interface VitalsState {
   summary: string | null;
   severity: 'green' | 'yellow' | 'red' | null;
   recommendations: string[] | null;
-  inferenceType: 'local' | 'cloud' | 'fallback' | null;
+  inferenceType: 'local' | 'fallback' | null;
   // Methods
   setVitals: (vitals: Partial<Omit<VitalsState, 'setVitals' | 'reset'>>) => void;
   reset: () => void;
