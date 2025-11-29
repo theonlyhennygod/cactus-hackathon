@@ -23,40 +23,102 @@ export const generateTriage = async (
             console.log('⚠️ Triage model not available, using intelligent fallback');
             
             // Generate personalized recommendations based on actual data
-            const hr = vitals.heartRate || 72;
-            const hrv = vitals.hrv || 50;
-            const tremor = vitals.tremorIndex || 0;
-            const breathing = audioResult.breathingRate || 16;
+            const hr = vitals.heartRate ?? 72;
+            const hrv = vitals.hrv ?? 50;
+            const tremor = vitals.tremorIndex ?? 0;
+            const breathing = audioResult?.breathingRate ?? 16;
+            const coughType = audioResult?.coughType ?? 'none';
+            const skinCondition = visionResult?.skinCondition ?? 'Unknown';
             
-            // Determine severity based on vitals
+            // Determine severity based on vitals with comprehensive edge cases
             let severity: 'green' | 'yellow' | 'red' = 'green';
             const concerns: string[] = [];
+            const positives: string[] = [];
             
-            if (hr > 100 || hr < 50) {
+            // Heart rate analysis
+            if (hr > 120) {
+                severity = 'red';
+                concerns.push('significantly elevated heart rate');
+            } else if (hr > 100 || hr < 50) {
                 severity = 'yellow';
                 concerns.push('heart rate outside normal range');
+            } else if (hr >= 60 && hr <= 80) {
+                positives.push('optimal resting heart rate');
             }
-            if (hrv < 20) {
-                severity = severity === 'green' ? 'yellow' : severity;
+            
+            // HRV analysis (only escalate, never downgrade)
+            if (hrv < 15) {
+                if (severity === 'green') severity = 'yellow';
+                concerns.push('very low heart rate variability');
+            } else if (hrv < 30) {
+                if (severity === 'green') severity = 'yellow';
                 concerns.push('low heart rate variability');
+            } else if (hrv >= 50) {
+                positives.push('excellent HRV indicating good recovery');
             }
-            if (tremor > 2) {
-                severity = severity === 'green' ? 'yellow' : severity;
-                concerns.push('elevated tremor detected');
+            
+            // Tremor analysis
+            if (tremor > 3) {
+                if (severity === 'green') severity = 'yellow';
+                concerns.push('notable hand tremor detected');
+            } else if (tremor > 1.5) {
+                concerns.push('mild tremor detected');
+            } else if (tremor < 0.5) {
+                positives.push('excellent motor stability');
+            }
+            
+            // Breathing analysis
+            if (breathing < 10 || breathing > 22) {
+                if (severity === 'green') severity = 'yellow';
+                concerns.push('breathing rate outside normal range');
+            }
+            
+            // Cough analysis
+            if (coughType === 'wet') {
+                if (severity === 'green') severity = 'yellow';
+                concerns.push('productive cough detected');
+            } else if (coughType === 'dry') {
+                concerns.push('dry cough noted');
             }
             
             // Generate personalized summary
-            const summary = concerns.length > 0
-                ? `Some metrics need attention: ${concerns.join(', ')}. Consider consulting a healthcare provider if symptoms persist.`
-                : `Your vitals look healthy! Heart rate ${Math.round(hr)} bpm, HRV ${Math.round(hrv)} ms, and minimal tremor detected.`;
+            let summary: string;
+            if (severity === 'red') {
+                summary = `Some vital signs need immediate attention. ${concerns.join(', ')}. Please consider consulting a healthcare provider soon.`;
+            } else if (concerns.length > 0) {
+                summary = `Overall wellness is good with some areas to monitor: ${concerns.join(', ')}. ${positives.length > 0 ? `Positives: ${positives.join(', ')}.` : ''}`;
+            } else {
+                summary = `Your vitals look healthy! Heart rate ${Math.round(hr)} bpm, HRV ${Math.round(hrv)} ms, and ${positives.length > 0 ? positives.join(', ') : 'all metrics within normal range'}.`;
+            }
             
-            // Generate personalized recommendations
-            const recommendations = [
-                hr > 80 ? 'Practice relaxation techniques to lower heart rate' : 'Maintain your current activity level',
-                hrv < 40 ? 'Try meditation or deep breathing to improve HRV' : 'Your stress levels appear well-managed',
-                tremor > 1 ? 'Reduce caffeine intake and ensure adequate sleep' : 'Your motor control is excellent',
-                'Stay hydrated with 8 glasses of water daily',
-            ];
+            // Generate personalized recommendations based on all data
+            const recommendations: string[] = [];
+            
+            // Heart rate recommendations
+            if (hr > 90) {
+                recommendations.push('Practice relaxation techniques like deep breathing to help lower heart rate');
+            } else if (hr < 55) {
+                recommendations.push('Consider light physical activity to maintain healthy circulation');
+            } else {
+                recommendations.push('Maintain your current activity level - your heart rate is well-balanced');
+            }
+            
+            // HRV recommendations
+            if (hrv < 40) {
+                recommendations.push('Try meditation or yoga to improve heart rate variability and reduce stress');
+            } else {
+                recommendations.push('Your stress levels appear well-managed - keep up the good work');
+            }
+            
+            // Tremor recommendations
+            if (tremor > 1) {
+                recommendations.push('Reduce caffeine intake and ensure 7-8 hours of quality sleep');
+            } else {
+                recommendations.push('Your motor control is excellent - maintain regular hand exercises');
+            }
+            
+            // General wellness
+            recommendations.push('Stay hydrated with 8 glasses of water daily for optimal health');
             
             const result = { summary, severity, recommendations };
             console.log('📊 Triage Analysis Result:', JSON.stringify(result, null, 2));

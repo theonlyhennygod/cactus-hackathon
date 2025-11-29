@@ -582,35 +582,40 @@ export default function CaptureFlow() {
               colors={[palette.primary[50], palette.primary[100]]}
               style={styles.sensorGradient}
             >
-              {/* Outer ripple rings */}
-              {isCapturing && (
-                <>
-                  <Animated.View style={[styles.breathRing, styles.breathRing1, breathCircleStyle]} />
-                  <Animated.View style={[styles.breathRing, styles.breathRing2, breathCircleStyle]} />
-                  <Animated.View style={[styles.breathRing, styles.breathRing3, breathCircleStyle]} />
-                </>
-              )}
+              {/* Centered breathing container */}
+              <View style={styles.breathingContainer}>
+                {/* Outer ripple rings - positioned absolutely from center */}
+                {isCapturing && (
+                  <>
+                    <Animated.View style={[styles.breathRing, styles.breathRing1]} />
+                    <Animated.View style={[styles.breathRing, styles.breathRing2]} />
+                    <Animated.View style={[styles.breathRing, styles.breathRing3]} />
+                  </>
+                )}
+                
+                {/* Main breathing circle */}
+                <Animated.View style={[styles.breathingCircle, breathCircleStyle]}>
+                  <LinearGradient
+                    colors={[
+                      breathPhase === 'inhale' ? palette.primary[400] : 
+                      breathPhase === 'hold' ? palette.warning[400] : 
+                      breathPhase === 'exhale' ? palette.success[400] : palette.primary[300],
+                      breathPhase === 'inhale' ? palette.primary[500] : 
+                      breathPhase === 'hold' ? palette.warning[500] : 
+                      breathPhase === 'exhale' ? palette.success[500] : palette.primary[400],
+                    ]}
+                    style={styles.breathingInner}
+                  >
+                    <Ionicons name="leaf" size={40} color={palette.white} />
+                    <Text style={styles.breathPhaseText}>
+                      {breathPhase === 'inhale' ? 'Breathe In' : 
+                       breathPhase === 'hold' ? 'Hold' : 
+                       breathPhase === 'exhale' ? 'Breathe Out' : 'Ready'}
+                    </Text>
+                  </LinearGradient>
+                </Animated.View>
+              </View>
               
-              <Animated.View style={[styles.breathingCircle, breathCircleStyle]}>
-                <LinearGradient
-                  colors={[
-                    breathPhase === 'inhale' ? palette.primary[400] : 
-                    breathPhase === 'hold' ? palette.warning[400] : 
-                    breathPhase === 'exhale' ? palette.success[400] : palette.primary[300],
-                    breathPhase === 'inhale' ? palette.primary[500] : 
-                    breathPhase === 'hold' ? palette.warning[500] : 
-                    breathPhase === 'exhale' ? palette.success[500] : palette.primary[400],
-                  ]}
-                  style={styles.breathingInner}
-                >
-                  <Ionicons name="leaf" size={40} color={palette.white} />
-                  <Text style={styles.breathPhaseText}>
-                    {breathPhase === 'inhale' ? 'Breathe In' : 
-                     breathPhase === 'hold' ? 'Hold' : 
-                     breathPhase === 'exhale' ? 'Breathe Out' : 'Ready'}
-                  </Text>
-                </LinearGradient>
-              </Animated.View>
               {isCapturing && (
                 <View style={styles.breathingInfo}>
                   <Text style={styles.breathingCycles}>Cycle {breathingCycles + 1} of 3</Text>
@@ -932,38 +937,45 @@ const styles = StyleSheet.create({
     color: palette.success[700],
     fontWeight: typography.weight.medium,
   },
+  breathingContainer: {
+    width: 300,
+    height: 300,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   breathRing: {
     position: 'absolute',
     borderWidth: 2,
     borderColor: palette.primary[300],
     borderRadius: 999,
+    alignSelf: 'center',
   },
   breathRing1: {
     width: 220,
     height: 220,
-    opacity: 0.3,
+    opacity: 0.4,
   },
   breathRing2: {
     width: 260,
     height: 260,
-    opacity: 0.2,
+    opacity: 0.25,
   },
   breathRing3: {
     width: 300,
     height: 300,
-    opacity: 0.1,
+    opacity: 0.15,
   },
   breathingCircle: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
     ...shadows.lg,
     zIndex: 10,
   },
   breathingInner: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
     alignItems: 'center',
     justifyContent: 'center',
   },
