@@ -49,18 +49,6 @@
     "plugins": [
       "expo-router",
       [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#FFFFFF",
-          "image": "./assets/images/splash-icon.png",
-          "dark": {
-            "image": "./assets/images/splash-icon.png",
-            "backgroundColor": "#1A1A2E"
-          },
-          "imageWidth": 200
-        }
-      ],
-      [
         "expo-camera",
         {
           "cameraPermission": "Allow Pocket Doctor to access your camera for health checks."
@@ -99,8 +87,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b25dede9-4659-4160-b034-be5dcd8d4b31"
+        "projectId": "2cc5cea7-f203-4a53-bbe7-b191a4914d32"
       }
-    }
+    },
+    "owner": "ehushubhamshaw"
   }
 }

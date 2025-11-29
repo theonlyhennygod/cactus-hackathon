@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,7 +33,7 @@ export default function HomeScreen() {
   }, []);
 
   const features = [
-    { icon: 'heart-outline' as const, title: 'Heart Rate', desc: 'PPG Analysis' },
+    { icon: 'happy-outline' as const, title: 'Mood', desc: 'Emotion AI' },
     { icon: 'pulse-outline' as const, title: 'HRV', desc: 'Variability' },
     { icon: 'fitness-outline' as const, title: 'Breathing', desc: 'Respiratory' },
     { icon: 'hand-left-outline' as const, title: 'Tremor', desc: 'Stability' },

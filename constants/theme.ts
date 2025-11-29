@@ -85,6 +85,19 @@ export const palette = {
     800: '#262626',
     900: '#171717',
   },
+  // Info - Blue for informational content
+  info: {
+    50: '#EFF6FF',
+    100: '#DBEAFE',
+    200: '#BFDBFE',
+    300: '#93C5FD',
+    400: '#60A5FA',
+    500: '#3B82F6',
+    600: '#2563EB',
+    700: '#1D4ED8',
+    800: '#1E40AF',
+    900: '#1E3A8A',
+  },
   // Pure
   white: '#FFFFFF',
   black: '#000000',
@@ -181,6 +194,7 @@ export const Colors = {
 
 // Spacing scale (4px base)
 export const spacing = {
+  xxs: 2,
   xs: 4,
   sm: 8,
   md: 16,

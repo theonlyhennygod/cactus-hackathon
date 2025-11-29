@@ -1,12 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { getTrendInsights, type TrendInsight } from '@/agents/MemoryAgent';
+import { generateTriage, type TriageResult } from '@/agents';
 import { AIStatusBadge } from '@/components/ui/AIStatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -17,22 +16,26 @@ import { useCheckInStore, useVitalsStore } from '@/store';
 import { generateAndSharePDF } from '@/utils/pdfExport';
 
 type VitalStatus = 'excellent' | 'good' | 'normal' | 'caution' | 'concern';
+type EmotionType = 'happy' | 'sad' | 'angry' | 'anxious' | 'neutral' | 'calm';
 
-function getHeartRateStatus(hr: number): VitalStatus {
-  if (hr >= 60 && hr <= 70) return 'excellent';
-  if (hr >= 55 && hr <= 80) return 'good';
-  if (hr >= 50 && hr <= 100) return 'normal';
-  if (hr >= 45 && hr <= 110) return 'caution';
-  return 'concern';
-}
+// Emoji mapping for emotions
+const EMOTION_EMOJIS: Record<EmotionType, string> = {
+  happy: '😊',
+  calm: '😌',
+  neutral: '😐',
+  anxious: '😰',
+  sad: '😢',
+  angry: '😠',
+};
 
-function getHRVStatus(hrv: number): VitalStatus {
-  if (hrv >= 60) return 'excellent';
-  if (hrv >= 45) return 'good';
-  if (hrv >= 30) return 'normal';
-  if (hrv >= 20) return 'caution';
-  return 'concern';
-}
+const EMOTION_COLORS: Record<EmotionType, string> = {
+  happy: palette.success[500],
+  calm: palette.primary[500],
+  neutral: palette.neutral[500],
+  anxious: palette.warning[500],
+  sad: palette.info[500],
+  angry: palette.danger[500],
+};
 
 function getBreathingStatus(br: number): VitalStatus {
   if (br >= 12 && br <= 16) return 'excellent';
@@ -52,26 +55,60 @@ function getTremorStatus(ti: number): VitalStatus {
 export default function ResultsScreen() {
   const router = useRouter();
   const vitals = useVitalsStore();
-  const { reset } = useCheckInStore();
-  const [trendInsights, setTrendInsights] = useState<TrendInsight[]>([]);
+  const vitalsReset = useVitalsStore((state) => state.reset);
+  const { reset: checkInReset } = useCheckInStore();
+  const [aiAnalysis, setAiAnalysis] = useState<TriageResult | null>(null);
+  const [isLoadingAI, setIsLoadingAI] = useState(true);
 
-  // Load trend insights on mount
+  // Load AI analysis and trend insights on mount
   useEffect(() => {
-    const loadInsights = async () => {
-      const insights = await getTrendInsights({
-        heartRate: vitals.heartRate ?? undefined,
-        hrv: vitals.hrv ?? undefined,
-        breathingRate: vitals.breathingRate ?? undefined,
-        tremorIndex: vitals.tremorIndex ?? undefined,
-        coughType: vitals.coughType ?? undefined,
-      });
-      setTrendInsights(insights);
+    const loadAnalysis = async () => {
+      setIsLoadingAI(true);
+      
+      // Generate AI recommendations using Qwen (local-first)
+      try {
+        console.log('🧠 Generating AI recommendations...');
+        const triageResult = await generateTriage(
+          {
+            moodScore: vitals.moodScore,
+            overallMood: vitals.overallMood,
+            facialEmotion: vitals.facialEmotion,
+            voiceEmotion: vitals.voiceEmotion,
+            tremorIndex: vitals.tremorIndex,
+            breathingRate: vitals.breathingRate,
+            skinCondition: vitals.skinCondition,
+          },
+          { skinCondition: vitals.skinCondition },
+          { 
+            breathingRate: vitals.breathingRate,
+            coughType: vitals.coughType,
+          }
+        );
+        setAiAnalysis(triageResult);
+        
+        // Also update the store with AI results
+        vitals.setVitals({
+          summary: triageResult.summary,
+          severity: triageResult.severity,
+          recommendations: triageResult.recommendations,
+          inferenceType: triageResult.inferenceType,
+        });
+        
+        console.log('✅ AI analysis complete:', triageResult.inferenceType);
+      } catch (error) {
+        console.error('AI analysis error:', error);
+      }
+      
+      setIsLoadingAI(false);
     };
-    loadInsights();
-  }, [vitals]);
+    
+    loadAnalysis();
+  }, [vitals.moodScore, vitals.breathingRate, vitals.tremorIndex, vitals.skinCondition]);
 
   const handleDone = () => {
-    reset();
+    // Reset both stores completely
+    vitalsReset();
+    checkInReset();
     router.replace('/');
   };
 
@@ -79,11 +116,18 @@ export default function ResultsScreen() {
     await generateAndSharePDF(vitals);
   };
 
-  // Calculate overall status
+  // Calculate overall status based on mood and vitals
   const getOverallStatus = () => {
+    // Use mood score as primary indicator
+    if (vitals.moodScore !== null) {
+      if (vitals.moodScore >= 70) return { status: 'great', message: 'You seem to be doing great!', color: palette.success[500] };
+      if (vitals.moodScore >= 50) return { status: 'normal', message: 'Your wellness looks balanced', color: palette.primary[500] };
+      if (vitals.moodScore >= 30) return { status: 'caution', message: 'Consider some self-care today', color: palette.warning[500] };
+      return { status: 'concern', message: 'Take care of yourself', color: palette.danger[500] };
+    }
+    
+    // Fallback to vitals check
     const statuses = [
-      vitals.heartRate !== null ? getHeartRateStatus(vitals.heartRate) : 'normal',
-      vitals.hrv !== null ? getHRVStatus(vitals.hrv) : 'normal',
       vitals.breathingRate !== null ? getBreathingStatus(vitals.breathingRate) : 'normal',
       vitals.tremorIndex !== null ? getTremorStatus(vitals.tremorIndex) : 'normal',
     ];
@@ -91,7 +135,7 @@ export default function ResultsScreen() {
     if (statuses.includes('concern')) return { status: 'concern', message: 'Consider consulting a healthcare provider', color: palette.danger[500] };
     if (statuses.includes('caution')) return { status: 'caution', message: 'Some metrics need attention', color: palette.warning[500] };
     if (statuses.every(s => s === 'excellent' || s === 'good')) return { status: 'great', message: 'Your vitals look great!', color: palette.success[500] };
-    return { status: 'normal', message: 'Your vitals are within normal range', color: palette.primary[500] };
+    return { status: 'normal', message: 'Wellness check complete', color: palette.primary[500] };
   };
 
   const overall = getOverallStatus();
@@ -104,7 +148,7 @@ export default function ResultsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <Animated.View entering={FadeInDown.duration(500).springify()}>
+        <View>
           <LinearGradient
             colors={[overall.color, overall.color + 'DD']}
             start={{ x: 0, y: 0 }}
@@ -133,25 +177,16 @@ export default function ResultsScreen() {
               </Text>
             </View>
           </LinearGradient>
-        </Animated.View>
+        </View>
 
         {/* Offline Indicator - Disabled for Expo Go */}
         {/* <OfflineIndicator /> */}
 
-        {/* Vitals Grid */}
+        {/* Vitals Grid - Breathing & Tremor */}
         <Text style={styles.sectionTitle}>Your Vitals</Text>
         
         <View style={styles.vitalsGrid}>
           <View style={styles.vitalColumn}>
-            <VitalCard
-              title="Heart Rate"
-              value={vitals.heartRate !== null ? vitals.heartRate.toFixed(0) : '--'}
-              unit="bpm"
-              icon="heart"
-              status={vitals.heartRate !== null ? getHeartRateStatus(vitals.heartRate) : 'normal'}
-              subtitle="Resting heart rate"
-              animationDelay={100}
-            />
             <VitalCard
               title="Breathing Rate"
               value={vitals.breathingRate !== null ? vitals.breathingRate.toFixed(0) : '--'}
@@ -159,19 +194,10 @@ export default function ResultsScreen() {
               icon="fitness"
               status={vitals.breathingRate !== null ? getBreathingStatus(vitals.breathingRate) : 'normal'}
               subtitle="Breaths per minute"
-              animationDelay={300}
+              animationDelay={100}
             />
           </View>
           <View style={styles.vitalColumn}>
-            <VitalCard
-              title="HRV"
-              value={vitals.hrv !== null ? vitals.hrv.toFixed(0) : '--'}
-              unit="ms"
-              icon="pulse"
-              status={vitals.hrv !== null ? getHRVStatus(vitals.hrv) : 'normal'}
-              subtitle="Heart rate variability"
-              animationDelay={200}
-            />
             <VitalCard
               title="Tremor Index"
               value={vitals.tremorIndex !== null ? vitals.tremorIndex.toFixed(2) : '--'}
@@ -179,92 +205,137 @@ export default function ResultsScreen() {
               icon="hand-left"
               status={vitals.tremorIndex !== null ? getTremorStatus(vitals.tremorIndex) : 'normal'}
               subtitle="Hand stability score"
-              animationDelay={400}
+              animationDelay={200}
             />
           </View>
         </View>
 
         {/* AI Triage Summary */}
-        <Animated.View entering={FadeInUp.delay(500).duration(500).springify()}>
+        <View>
           <Card variant="outlined" padding="lg" style={styles.triageCard}>
             <View style={styles.triageHeader}>
               <View style={[
                 styles.triageIconContainer,
-                vitals.severity === 'red' && { backgroundColor: palette.danger[100] },
-                vitals.severity === 'yellow' && { backgroundColor: palette.warning[100] },
+                aiAnalysis?.severity === 'red' && { backgroundColor: palette.danger[100] },
+                aiAnalysis?.severity === 'yellow' && { backgroundColor: palette.warning[100] },
               ]}>
                 <Ionicons 
                   name="sparkles" 
                   size={20} 
                   color={
-                    vitals.severity === 'red' ? palette.danger[500] :
-                    vitals.severity === 'yellow' ? palette.warning[500] :
+                    aiAnalysis?.severity === 'red' ? palette.danger[500] :
+                    aiAnalysis?.severity === 'yellow' ? palette.warning[500] :
                     Colors.light.primary
                   } 
                 />
               </View>
-              <Text style={styles.triageTitle}>AI Health Summary</Text>
-              <AIStatusBadge inferenceType={vitals.inferenceType || 'fallback'} />
+              <Text style={styles.triageTitle}>AI Health Analysis</Text>
+              {!isLoadingAI && aiAnalysis && (
+                <AIStatusBadge inferenceType={aiAnalysis.inferenceType || 'fallback'} />
+              )}
             </View>
-            <Text style={styles.triageText}>
-              {vitals.summary || `Based on your vitals, everything looks ${overall.status === 'great' ? 'excellent' : 'stable'}. Consider staying hydrated and maintaining your current wellness routine.`}
-            </Text>
             
-            {/* AI Recommendations */}
-            {vitals.recommendations && vitals.recommendations.length > 0 && (
-              <View style={styles.recommendationsList}>
-                {vitals.recommendations.map((rec: string, index: number) => (
-                  <View key={index} style={styles.recommendationItem}>
-                    <Ionicons name="checkmark-circle" size={16} color={palette.success[500]} />
-                    <Text style={styles.recommendationText}>{rec}</Text>
-                  </View>
-                ))}
+            {isLoadingAI ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={Colors.light.primary} />
+                <Text style={styles.loadingText}>Analyzing your vitals with Qwen AI...</Text>
               </View>
+            ) : (
+              <>
+                <Text style={styles.triageText}>
+                  {aiAnalysis?.summary || `Based on your vitals, everything looks ${overall.status === 'great' ? 'excellent' : 'stable'}. Consider staying hydrated and maintaining your current wellness routine.`}
+                </Text>
+                
+                {/* AI Recommendations */}
+                {aiAnalysis?.recommendations && aiAnalysis.recommendations.length > 0 && (
+                  <View style={styles.recommendationsList}>
+                    <Text style={styles.recommendationsTitle}>Recommendations</Text>
+                    {aiAnalysis.recommendations.map((rec: string, index: number) => (
+                      <View key={index} style={styles.recommendationItem}>
+                        <Ionicons name="checkmark-circle" size={16} color={palette.success[500]} />
+                        <Text style={styles.recommendationText}>{rec}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </>
             )}
             
             <View style={styles.triageFooter}>
               <Ionicons name="shield-checkmark" size={14} color={Colors.light.textTertiary} />
               <Text style={styles.triageDisclaimer}>
-                Non-diagnostic wellness insights only
+                Non-diagnostic wellness insights • Powered by on-device AI
               </Text>
             </View>
           </Card>
-        </Animated.View>
+        </View>
 
-        {/* Trend Insights - Memory Track Feature */}
-        {trendInsights.length > 0 && (
-          <Animated.View entering={FadeInUp.delay(600).duration(500).springify()}>
-            <Card variant="filled" padding="md" style={styles.trendsCard}>
-              <View style={styles.trendsHeader}>
-                <View style={styles.trendsIconContainer}>
-                  <Ionicons name="trending-up" size={20} color={Colors.light.primary} />
+        {/* Skin Condition Card - if available */}
+        {vitals.skinCondition && (
+          <View>
+            <Card variant="filled" padding="md" style={styles.skinCard}>
+              <View style={styles.skinHeader}>
+                <View style={styles.skinIconContainer}>
+                  <Ionicons name="scan" size={20} color={palette.primary[500]} />
                 </View>
-                <Text style={styles.trendsTitle}>Your Trends</Text>
+                <Text style={styles.skinTitle}>Skin Analysis</Text>
               </View>
-              <View style={styles.trendsList}>
-                {trendInsights.map((insight, index) => (
-                  <View key={index} style={styles.trendItem}>
-                    <Ionicons 
-                      name={insight.isPositive ? 'arrow-up-circle' : 'arrow-down-circle'} 
-                      size={18} 
-                      color={insight.isPositive ? palette.success[500] : palette.warning[500]} 
-                    />
-                    <View style={styles.trendContent}>
-                      <Text style={styles.trendMetric}>{insight.metric}</Text>
-                      <Text style={styles.trendMessage}>{insight.message}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
+              <Text style={styles.skinConditionText}>
+                Condition: <Text style={styles.skinConditionValue}>{vitals.skinCondition}</Text>
+              </Text>
             </Card>
-          </Animated.View>
+          </View>
+        )}
+
+        {/* Mood Analysis Card - if available */}
+        {vitals.moodScore !== null && vitals.overallMood && (
+          <View>
+            <Card variant="filled" padding="md" style={styles.moodCard}>
+              <View style={styles.moodHeader}>
+                <View style={[styles.moodIconContainer, { backgroundColor: EMOTION_COLORS[vitals.overallMood as EmotionType] + '20' }]}>
+                  <Text style={styles.moodEmoji}>{EMOTION_EMOJIS[vitals.overallMood as EmotionType]}</Text>
+                </View>
+                <View style={styles.moodTitleContainer}>
+                  <Text style={styles.moodTitle}>Mood Analysis</Text>
+                  <Text style={[styles.moodLabel, { color: EMOTION_COLORS[vitals.overallMood as EmotionType] }]}>
+                    {vitals.overallMood.charAt(0).toUpperCase() + vitals.overallMood.slice(1)}
+                  </Text>
+                </View>
+                <View style={[styles.moodScoreBadge, { backgroundColor: EMOTION_COLORS[vitals.overallMood as EmotionType] }]}>
+                  <Text style={styles.moodScoreText}>{vitals.moodScore}</Text>
+                </View>
+              </View>
+              
+              {vitals.moodDescription && (
+                <Text style={styles.moodDescription}>{vitals.moodDescription}</Text>
+              )}
+              
+              {(vitals.facialEmotion || vitals.voiceEmotion) && (
+                <View style={styles.moodBreakdown}>
+                  {vitals.facialEmotion && (
+                    <View style={styles.moodBreakdownItem}>
+                      <Text style={styles.moodBreakdownLabel}>👤 Face:</Text>
+                      <Text style={styles.moodBreakdownValue}>
+                        {EMOTION_EMOJIS[vitals.facialEmotion as EmotionType]} {vitals.facialEmotion}
+                      </Text>
+                    </View>
+                  )}
+                  {vitals.voiceEmotion && (
+                    <View style={styles.moodBreakdownItem}>
+                      <Text style={styles.moodBreakdownLabel}>🎤 Voice:</Text>
+                      <Text style={styles.moodBreakdownValue}>
+                        {EMOTION_EMOJIS[vitals.voiceEmotion as EmotionType]} {vitals.voiceEmotion}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </Card>
+          </View>
         )}
 
         {/* Action Buttons */}
-        <Animated.View 
-          entering={FadeInUp.delay(700).duration(500).springify()}
-          style={styles.actions}
-        >
+        <View style={styles.actions}>
           <Button
             title="Export PDF Summary"
             icon="document-text-outline"
@@ -282,7 +353,7 @@ export default function ResultsScreen() {
             fullWidth
             onPress={handleDone}
           />
-        </Animated.View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -415,48 +486,125 @@ const styles = StyleSheet.create({
   actions: {
     marginTop: spacing.md,
   },
-  trendsCard: {
-    marginTop: spacing.sm,
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  loadingText: {
+    fontSize: typography.size.sm,
+    color: Colors.light.textSecondary,
+    fontStyle: 'italic',
+  },
+  recommendationsTitle: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: Colors.light.text,
+    marginBottom: spacing.xs,
+  },
+  skinCard: {
     marginBottom: spacing.lg,
   },
-  trendsHeader: {
+  skinHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  trendsIconContainer: {
+  skinIconContainer: {
     width: 32,
     height: 32,
     borderRadius: radius.md,
-    backgroundColor: Colors.light.primaryLight,
+    backgroundColor: palette.primary[100],
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.sm,
   },
-  trendsTitle: {
+  skinTitle: {
     fontSize: typography.size.md,
     fontWeight: typography.weight.semibold,
     color: Colors.light.text,
   },
-  trendsList: {
-    gap: spacing.sm,
+  skinConditionText: {
+    fontSize: typography.size.md,
+    color: Colors.light.textSecondary,
   },
-  trendItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  trendContent: {
-    flex: 1,
-  },
-  trendMetric: {
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.medium,
+  skinConditionValue: {
+    fontWeight: typography.weight.semibold,
     color: Colors.light.text,
   },
-  trendMessage: {
+  // Mood Card Styles
+  moodCard: {
+    marginBottom: spacing.lg,
+  },
+  moodHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  moodIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  moodEmoji: {
+    fontSize: 24,
+  },
+  moodTitleContainer: {
+    flex: 1,
+  },
+  moodTitle: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    color: Colors.light.text,
+  },
+  moodLabel: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.medium,
+    textTransform: 'capitalize',
+  },
+  moodScoreBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moodScoreText: {
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
+    color: palette.white,
+  },
+  moodDescription: {
     fontSize: typography.size.sm,
     color: Colors.light.textSecondary,
     lineHeight: typography.size.sm * typography.lineHeight.relaxed,
+    marginBottom: spacing.sm,
+  },
+  moodBreakdown: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: Colors.light.surfaceSecondary,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  moodBreakdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  moodBreakdownLabel: {
+    fontSize: typography.size.xs,
+    color: Colors.light.textTertiary,
+  },
+  moodBreakdownValue: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.medium,
+    color: Colors.light.text,
+    textTransform: 'capitalize',
   },
 });

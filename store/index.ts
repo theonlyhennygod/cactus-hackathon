@@ -11,6 +11,9 @@ interface CheckInState {
   reset: () => void;
 }
 
+// Emotion types
+type EmotionType = 'happy' | 'sad' | 'angry' | 'anxious' | 'neutral' | 'calm';
+
 interface VitalsState {
   // Core vitals
   heartRate: number | null;
@@ -20,11 +23,17 @@ interface VitalsState {
   coughType: string | null;
   // Vision analysis
   skinCondition: string | null;
+  // Emotion analysis
+  moodScore: number | null;
+  overallMood: EmotionType | null;
+  facialEmotion: EmotionType | null;
+  voiceEmotion: EmotionType | null;
+  moodDescription: string | null;
   // AI Triage results
   summary: string | null;
   severity: 'green' | 'yellow' | 'red' | null;
   recommendations: string[] | null;
-  inferenceType: 'local' | 'cloud' | 'fallback' | null;
+  inferenceType: 'local' | 'fallback' | null;
   // Methods
   setVitals: (vitals: Partial<Omit<VitalsState, 'setVitals' | 'reset'>>) => void;
   reset: () => void;
@@ -56,6 +65,12 @@ export const useVitalsStore = create<VitalsState>((set) => ({
   coughType: null,
   // Vision analysis
   skinCondition: null,
+  // Emotion analysis
+  moodScore: null,
+  overallMood: null,
+  facialEmotion: null,
+  voiceEmotion: null,
+  moodDescription: null,
   // AI Triage results
   summary: null,
   severity: null,
@@ -70,6 +85,11 @@ export const useVitalsStore = create<VitalsState>((set) => ({
     tremorIndex: null, 
     coughType: null,
     skinCondition: null,
+    moodScore: null,
+    overallMood: null,
+    facialEmotion: null,
+    voiceEmotion: null,
+    moodDescription: null,
     summary: null,
     severity: null,
     recommendations: null,
