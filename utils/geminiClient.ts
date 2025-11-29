@@ -5,7 +5,7 @@
  * Only used when local Cactus models fail to load
  */
 
-const GEMINI_API_KEY = 'AIzaSyBRFekEOgL99W2j_aARgM1P7SvDWEH-SJQ';
+const GEMINI_API_KEY = 'AIzaSyBbdAsfYEoNCjGxaWfUj5FWi8peo67-NZI';
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 export interface GeminiTriageResult {
@@ -23,20 +23,23 @@ export async function generateTriageWithGemini(
     visionResult: any,
     audioResult: any
 ): Promise<GeminiTriageResult | null> {
-    const hr = vitals.heartRate ?? 72;
-    const hrv = vitals.hrv ?? 50;
+    // Use mood-based data instead of heart rate
+    const moodScore = vitals.moodScore ?? 50;
+    const overallMood = vitals.overallMood ?? 'neutral';
+    const facialEmotion = vitals.facialEmotion ?? 'neutral';
+    const voiceEmotion = vitals.voiceEmotion ?? 'neutral';
     const tremor = vitals.tremorIndex ?? 0;
-    const breathing = audioResult?.breathingRate ?? 16;
-    const coughType = audioResult?.coughType ?? 'none';
-    const skinCondition = visionResult?.skinCondition ?? 'Normal';
+    const breathing = vitals.breathingRate ?? audioResult?.breathingRate ?? 16;
+    const skinCondition = vitals.skinCondition ?? visionResult?.skinCondition ?? 'Normal';
 
-    const prompt = `You are a wellness coach providing non-diagnostic insights. Analyze this health data:
+    const prompt = `You are a wellness coach providing non-diagnostic insights. Analyze this wellness data:
 
-Heart Rate: ${hr} bpm
-HRV: ${hrv} ms
+Mood Score: ${moodScore}/100
+Overall Mood: ${overallMood}
+Facial Expression: ${facialEmotion}
+Voice Sentiment: ${voiceEmotion}
 Breathing Rate: ${breathing} rpm
 Tremor Index: ${tremor}
-Cough Type: ${coughType}
 Skin Condition: ${skinCondition}
 
 Provide a wellness assessment. Respond with ONLY valid JSON (no markdown, no backticks):

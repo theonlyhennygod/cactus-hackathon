@@ -1,11 +1,18 @@
 import { modelManager } from '../utils/modelManager';
 import { AccelerometerData } from '../utils/sensorHelpers';
 
+/**
+ * EchoLNNAgent - Analyzes time-series data (PPG, accelerometer)
+ * LOCAL-FIRST STRATEGY: All signal processing happens on-device
+ * No cloud fallback - uses local algorithms for heart rate and tremor detection
+ */
+
 export interface EchoLNNResult {
     heartRate: number;
     hrv: number;
     tremorIndex: number;
     quality: number;
+    inferenceType: 'local' | 'fallback';
 }
 
 export const analyzeTimeSeries = async (
@@ -63,6 +70,7 @@ export const analyzeTimeSeries = async (
             hrv: Math.round(hrv * 10) / 10,
             tremorIndex: Math.round(tremorIndex * 100) / 100,
             quality: accelData.length > 100 ? 0.9 : 0.7,
+            inferenceType: 'local' as const,
         };
         
         console.log('📊 Time-Series Analysis Result:', JSON.stringify({
@@ -74,7 +82,7 @@ export const analyzeTimeSeries = async (
         return result;
     } catch (error) {
         console.error('EchoLNNAgent error:', error);
-        // Fallback to basic calculations
+        // Fallback to basic calculations (still local, no cloud)
         const tremorIndex = accelData.length > 0
             ? accelData.reduce((acc, val) => acc + Math.abs(val.x) + Math.abs(val.y) + Math.abs(val.z), 0) / accelData.length
             : 0;
@@ -84,6 +92,7 @@ export const analyzeTimeSeries = async (
             hrv: 50,
             tremorIndex: tremorIndex * 10,
             quality: 0.5,
+            inferenceType: 'fallback' as const,
         };
     }
 };

@@ -4,6 +4,7 @@
  * Modular AI agents for wellness analysis:
  * - VisionAgent: Face/skin analysis via camera
  * - AudioAgent: Cough/breathing analysis
+ * - EmotionAgent: Facial expression + voice sentiment analysis
  * - EchoLNNAgent: Time-series analysis (PPG, accelerometer)
  * - TriageAgent: LLM-based health recommendations
  * - MemoryAgent: Session history & baseline tracking
@@ -12,6 +13,7 @@
 
 export { analyzeAudio, type AudioResult } from './AudioAgent';
 export { analyzeTimeSeries, type EchoLNNResult } from './EchoLNNAgent';
+export { analyzeEmotion, analyzeFacialEmotion, analyzeVoiceEmotion, EMOTION_QUESTIONS, getRandomQuestion, type EmotionResult, type EmotionType } from './EmotionAgent';
 export { getBaseline, getHistory, getHistorySummary, getTrendInsights, saveSession, type BaselineData, type TrendInsight, type WellnessSession } from './MemoryAgent';
 export { runWellnessCheck } from './Orchestrator';
 export { generateTriage, type TriageResult } from './TriageAgent';

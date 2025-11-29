@@ -8,7 +8,7 @@ import { CactusLM } from 'cactus-react-native';
  */
 
 // Model configurations using Cactus model names
-// Available models: qwen3-0.6, lfm2-350m, smolvlm-256m (vision)
+// Available models: qwen3-0.6, lfm2-vl-450m (vision), whisper-small (STT)
 const MODEL_CONFIGS = {
   triage: {
     // Qwen3-0.6B - Small but capable model for wellness triage
@@ -16,8 +16,8 @@ const MODEL_CONFIGS = {
     contextSize: 2048,
   },
   vision: {
-    // SmolVLM - Lightweight vision-language model for face/skin analysis
-    model: 'smolvlm-256m',
+    // LFM2-VL-450m - Vision-language model for face/skin analysis
+    model: 'lfm2-vl-450m',
     contextSize: 2048,
   },
   audio: {
@@ -152,8 +152,11 @@ class ModelManager {
       this.modelErrors.delete(modelType);
       this.notifyListeners();
 
-      // Create CactusLM instance with model name
-      const lm = new CactusLM({ model: config.model });
+      // Create CactusLM instance with model name and context size
+      const lm = new CactusLM({ 
+        model: config.model,
+        contextSize: config.contextSize || 2048,
+      });
 
       // Download model with progress tracking
       console.log('⬇️ Downloading ' + modelType + ' model...');
@@ -170,6 +173,10 @@ class ModelManager {
           }
         },
       });
+      
+      // Initialize the model for inference (REQUIRED after download!)
+      console.log('🚀 Initializing ' + modelType + ' for inference...');
+      await lm.init();
 
       console.log('🎉 ' + modelType + ' model ready for inference!');
 
@@ -182,7 +189,8 @@ class ModelManager {
       return lm;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      console.error('❌ Failed to load ' + modelType + ' model:', error);
+      // Don't use console.error for expected failures (simulator, unsupported device)
+      console.log('ℹ️ ' + modelType + ' model not available: ' + errorMsg + ' (using fallback)');
       this.isDownloading.set(modelType, false);
       this.modelErrors.set(modelType, errorMsg);
       this.notifyListeners();
