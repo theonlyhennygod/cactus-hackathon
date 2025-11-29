@@ -1,15 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { getHistory } from '@/agents/MemoryAgent';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Colors, palette, radius, spacing, typography } from '@/constants/theme';
-import { useSettingsStore } from '@/store';
+import { useCheckInStore, useSettingsStore, useVitalsStore } from '@/store';
 import { mmkvStorage } from '@/store/mmkv';
+import { generateAndSharePDF } from '@/utils/pdfExport';
 
 interface SettingRowProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -49,23 +51,73 @@ function SettingRow({ icon, iconColor, iconBg, title, subtitle, right, onPress }
 export default function SettingsScreen() {
   const router = useRouter();
   const { isPrivacyMode, togglePrivacyMode } = useSettingsStore();
+  const vitalsStore = useVitalsStore();
+  const checkInStore = useCheckInStore();
+  const [sessionCount, setSessionCount] = useState(0);
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Load session count on mount
+  useEffect(() => {
+    loadSessionCount();
+  }, []);
+
+  const loadSessionCount = async () => {
+    try {
+      const history = await getHistory();
+      setSessionCount(history.length);
+    } catch (error) {
+      console.log('Error loading history:', error);
+    }
+  };
+
+  const handleExportData = async () => {
+    if (sessionCount === 0) {
+      Alert.alert('No Data', 'Complete a wellness check first to export data.');
+      return;
+    }
+    
+    setIsExporting(true);
+    try {
+      await generateAndSharePDF(vitalsStore);
+      Alert.alert('Export Complete', 'Your wellness report has been generated!');
+    } catch (error) {
+      console.error('Export error:', error);
+      Alert.alert('Export Failed', 'Could not generate the report. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleDeleteData = () => {
     Alert.alert(
       'Delete All Data',
-      'This will permanently delete all your wellness history and cannot be undone.',
+      `This will permanently delete ${sessionCount} wellness session(s) and all settings. This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete Everything',
           style: 'destructive',
           onPress: () => {
+            // Clear all storage
             mmkvStorage.removeItem('wellness_history');
-            Alert.alert('Data Deleted', 'All local wellness history has been cleared.');
+            mmkvStorage.removeItem('settings-storage');
+            
+            // Reset stores
+            vitalsStore.reset();
+            checkInStore.reset();
+            
+            // Update session count
+            setSessionCount(0);
+            
+            Alert.alert('Data Deleted', 'All local wellness data has been cleared.');
           },
         },
       ]
     );
+  };
+
+  const handleOpenGitHub = () => {
+    Linking.openURL('https://github.com/theonlyhennygod/cactus-hackathon');
   };
 
   return (
@@ -123,6 +175,19 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Data Management</Text>
           <Card variant="elevated" padding="none" style={styles.card}>
             <SettingRow
+              icon="analytics"
+              iconColor={palette.primary[600]}
+              iconBg={palette.primary[100]}
+              title="Wellness Sessions"
+              subtitle="Total check-ins completed"
+              right={
+                <View style={styles.countBadge}>
+                  <Text style={styles.countText}>{sessionCount}</Text>
+                </View>
+              }
+            />
+            <View style={styles.divider} />
+            <SettingRow
               icon="cloud-offline"
               title="Offline Mode"
               subtitle="No network requests"
@@ -136,9 +201,15 @@ export default function SettingsScreen() {
             <SettingRow
               icon="document-text"
               title="Export Health Data"
-              subtitle="Download your wellness history"
-              right={<Ionicons name="chevron-forward" size={20} color={Colors.light.textTertiary} />}
-              onPress={() => Alert.alert('Coming Soon', 'This feature will be available in a future update.')}
+              subtitle={isExporting ? 'Generating PDF...' : 'Share your wellness report'}
+              right={
+                isExporting ? (
+                  <Text style={styles.loadingText}>Exporting...</Text>
+                ) : (
+                  <Ionicons name="share-outline" size={20} color={Colors.light.primary} />
+                )
+              }
+              onPress={handleExportData}
             />
           </Card>
         </Animated.View>
@@ -188,8 +259,9 @@ export default function SettingsScreen() {
             <SettingRow
               icon="logo-github"
               title="Source Code"
-              right={<Ionicons name="chevron-forward" size={20} color={Colors.light.textTertiary} />}
-              onPress={() => Alert.alert('Open Source', 'Built with love for the hackathon!')}
+              subtitle="View on GitHub"
+              right={<Ionicons name="open-outline" size={20} color={Colors.light.textTertiary} />}
+              onPress={handleOpenGitHub}
             />
           </Card>
         </Animated.View>
@@ -300,6 +372,24 @@ const styles = StyleSheet.create({
     fontSize: typography.size.xs,
     fontWeight: typography.weight.semibold,
     color: Colors.light.success,
+  },
+  countBadge: {
+    backgroundColor: palette.primary[100],
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+    minWidth: 36,
+    alignItems: 'center',
+  },
+  countText: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    color: palette.primary[600],
+  },
+  loadingText: {
+    fontSize: typography.size.sm,
+    color: Colors.light.textTertiary,
+    fontStyle: 'italic',
   },
   versionText: {
     fontSize: typography.size.sm,
