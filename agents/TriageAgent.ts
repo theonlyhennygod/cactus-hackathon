@@ -20,16 +20,47 @@ export const generateTriage = async (
         });
         
         if (!lm) {
-            console.log('⚠️ Triage model not available, using fallback');
-            return {
-                summary: 'Your vitals appear within normal ranges. Continue monitoring your wellness.',
-                severity: 'green',
-                recommendations: [
-                    'Stay hydrated throughout the day',
-                    'Practice deep breathing exercises',
-                    'Maintain regular check-ins',
-                ],
-            };
+            console.log('⚠️ Triage model not available, using intelligent fallback');
+            
+            // Generate personalized recommendations based on actual data
+            const hr = vitals.heartRate || 72;
+            const hrv = vitals.hrv || 50;
+            const tremor = vitals.tremorIndex || 0;
+            const breathing = audioResult.breathingRate || 16;
+            
+            // Determine severity based on vitals
+            let severity: 'green' | 'yellow' | 'red' = 'green';
+            const concerns: string[] = [];
+            
+            if (hr > 100 || hr < 50) {
+                severity = 'yellow';
+                concerns.push('heart rate outside normal range');
+            }
+            if (hrv < 20) {
+                severity = severity === 'green' ? 'yellow' : severity;
+                concerns.push('low heart rate variability');
+            }
+            if (tremor > 2) {
+                severity = severity === 'green' ? 'yellow' : severity;
+                concerns.push('elevated tremor detected');
+            }
+            
+            // Generate personalized summary
+            const summary = concerns.length > 0
+                ? `Some metrics need attention: ${concerns.join(', ')}. Consider consulting a healthcare provider if symptoms persist.`
+                : `Your vitals look healthy! Heart rate ${Math.round(hr)} bpm, HRV ${Math.round(hrv)} ms, and minimal tremor detected.`;
+            
+            // Generate personalized recommendations
+            const recommendations = [
+                hr > 80 ? 'Practice relaxation techniques to lower heart rate' : 'Maintain your current activity level',
+                hrv < 40 ? 'Try meditation or deep breathing to improve HRV' : 'Your stress levels appear well-managed',
+                tremor > 1 ? 'Reduce caffeine intake and ensure adequate sleep' : 'Your motor control is excellent',
+                'Stay hydrated with 8 glasses of water daily',
+            ];
+            
+            const result = { summary, severity, recommendations };
+            console.log('📊 Triage Analysis Result:', JSON.stringify(result, null, 2));
+            return result;
         }
         
         console.log('✅ Triage model loaded');

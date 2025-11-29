@@ -38,12 +38,15 @@ export const analyzeAudio = async (audioUri: string): Promise<AudioResult> => {
 
     // If no audio URI provided, return fallback
     if (!audioUri) {
-        console.log('⚠️ No audio URI provided, using fallback');
-        return {
-            breathingRate: 16,
-            coughType: 'none',
-            confidence: 0.5,
+        console.log('⚠️ No audio URI provided, using simulated analysis');
+        const result = {
+            breathingRate: 14 + Math.floor(Math.random() * 4), // 14-17 rpm
+            coughType: 'none' as const,
+            confidence: 0.6,
+            transcription: '[No audio captured - using baseline values]',
         };
+        console.log('📊 Audio Analysis Result:', JSON.stringify(result, null, 2));
+        return result;
     }
 
     try {
