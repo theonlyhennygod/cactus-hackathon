@@ -6,7 +6,6 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import BreathingCoach from '@/components/BreathingCoach';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { VitalCard } from '@/components/ui/VitalCard';
@@ -207,12 +206,6 @@ export default function ResultsScreen() {
               </Text>
             </View>
           </Card>
-        </Animated.View>
-
-        {/* Breathing Coach */}
-        <Animated.View entering={FadeInUp.delay(600).duration(500).springify()}>
-          <Text style={styles.sectionTitle}>Wellness Tools</Text>
-          <BreathingCoach />
         </Animated.View>
 
         {/* Action Buttons */}
