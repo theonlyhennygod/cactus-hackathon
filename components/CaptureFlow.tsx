@@ -261,19 +261,19 @@ export default function CaptureFlow() {
         {/* Face Scan with Camera */}
         {step === 'face' && (
           <Animated.View entering={FadeIn.duration(400)} style={styles.cameraContainer}>
-            <CameraView style={styles.camera} facing="front" ref={cameraRef}>
-              <LinearGradient
-                colors={['rgba(0,0,0,0.6)', 'transparent', 'transparent', 'rgba(0,0,0,0.6)']}
-                style={styles.cameraOverlay}
-              >
-                {/* Face guide circle */}
-                <Animated.View style={[styles.faceGuide, pulseStyle, isCapturing && styles.faceGuideActive]}>
-                  {isCapturing && (
-                    <View style={styles.scanLine} />
-                  )}
-                </Animated.View>
-              </LinearGradient>
-            </CameraView>
+            <CameraView style={styles.camera} facing="front" ref={cameraRef} />
+            <LinearGradient
+              colors={['rgba(0,0,0,0.6)', 'transparent', 'transparent', 'rgba(0,0,0,0.6)']}
+              style={styles.cameraOverlay}
+              pointerEvents="none"
+            >
+              {/* Face guide circle */}
+              <Animated.View style={[styles.faceGuide, pulseStyle, isCapturing && styles.faceGuideActive]}>
+                {isCapturing && (
+                  <View style={styles.scanLine} />
+                )}
+              </Animated.View>
+            </LinearGradient>
           </Animated.View>
         )}
 
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cameraOverlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
   },
