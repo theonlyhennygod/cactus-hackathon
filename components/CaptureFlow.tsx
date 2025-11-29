@@ -29,7 +29,7 @@ import { AccelerometerData, startAccelerometer, stopAccelerometer } from '@/util
 
 const STEPS = [
   { key: 'face', label: 'Face', icon: 'scan-outline' as const },
-  { key: 'cough', label: 'Cough', icon: 'mic-outline' as const },
+  { key: 'cough', label: 'Lungs', icon: 'mic-outline' as const },
   { key: 'breathing', label: 'Breathing', icon: 'leaf-outline' as const },
   { key: 'tremor', label: 'Tremor', icon: 'hand-left-outline' as const },
 ];
@@ -44,6 +44,7 @@ export default function CaptureFlow() {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const cameraRef = useRef<CameraView>(null);
 
   // Captured data for agent processing - use refs for immediate access
@@ -283,14 +284,23 @@ export default function CaptureFlow() {
 
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+  // Transition to next step with a brief pause
+  const transitionToStep = async (nextStep: string) => {
+    setIsTransitioning(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await sleep(1500); // 1.5 second transition
+    setStep(nextStep as any);
+    setIsTransitioning(false);
+  };
+
   const handleStepComplete = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsCapturing(false);
     setCompletedSteps((prev) => [...prev, step]);
 
     if (step === 'face') {
-      // Face scan complete - move to cough
-      setStep('cough');
+      // Face scan complete - move to lung sounds
+      await transitionToStep('cough');
     } else if (step === 'cough') {
       // Stop and save audio recording
       if (recording) {
@@ -307,12 +317,12 @@ export default function CaptureFlow() {
         }
         setRecording(null);
       }
-      setStep('breathing');
+      await transitionToStep('breathing');
     } else if (step === 'breathing') {
       // Breathing exercise complete
       breathingActiveRef.current = false;
       console.log('🌬️ Breathing exercise complete:', breathingCycles, 'cycles');
-      setStep('tremor');
+      await transitionToStep('tremor');
     } else if (step === 'tremor') {
       // Stop accelerometer and save data
       const accelData = stopAccelerometer();
@@ -463,10 +473,10 @@ export default function CaptureFlow() {
         };
       case 'cough':
         return {
-          title: 'Respiratory Check',
-          subtitle: 'Recording breathing patterns',
+          title: 'Lung Sound Check',
+          subtitle: 'Place phone near chest to record',
           icon: 'mic-outline' as const,
-          instruction: 'Cough 3 times clearly',
+          instruction: 'Breathe deeply 3 times',
           color: palette.warning[500],
         };
       case 'breathing':
@@ -540,6 +550,42 @@ export default function CaptureFlow() {
           </View>
         </View>
       </SafeAreaView>
+    );
+  }
+
+  // Get next step name for transition screen
+  const getNextStepName = () => {
+    const stepIndex = STEPS.findIndex(s => s.key === step);
+    if (stepIndex < STEPS.length - 1) {
+      return STEPS[stepIndex + 1].label;
+    }
+    return 'Processing';
+  };
+
+  // Transition screen
+  if (isTransitioning) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={[palette.primary[500], palette.primary[600]]}
+          style={styles.transitionContainer}
+        >
+          <Animated.View entering={FadeIn.duration(300)} style={styles.transitionContent}>
+            <View style={styles.transitionIconContainer}>
+              <Ionicons name="checkmark-circle" size={64} color={palette.white} />
+            </View>
+            <Text style={styles.transitionTitle}>Step Complete!</Text>
+            <Text style={styles.transitionSubtitle}>
+              Moving to {getNextStepName()}...
+            </Text>
+            <View style={styles.transitionDots}>
+              <View style={[styles.transitionDot, styles.transitionDotActive]} />
+              <View style={[styles.transitionDot, styles.transitionDotActive]} />
+              <View style={styles.transitionDot} />
+            </View>
+          </Animated.View>
+        </LinearGradient>
+      </View>
     );
   }
 
@@ -829,6 +875,47 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.sm,
+  },
+  transitionContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  transitionContent: {
+    alignItems: 'center',
+  },
+  transitionIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  transitionTitle: {
+    fontSize: typography.size.xxl,
+    fontWeight: typography.weight.bold,
+    color: palette.white,
+    marginBottom: spacing.sm,
+  },
+  transitionSubtitle: {
+    fontSize: typography.size.md,
+    color: 'rgba(255,255,255,0.9)',
+    marginBottom: spacing.xl,
+  },
+  transitionDots: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  transitionDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  transitionDotActive: {
+    backgroundColor: palette.white,
   },
   content: {
     flex: 1,
