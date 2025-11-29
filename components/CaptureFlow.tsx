@@ -7,14 +7,14 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
-  FadeIn,
-  FadeInDown,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withSpring,
-  withTiming
+    FadeIn,
+    FadeInDown,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withSequence,
+    withSpring,
+    withTiming
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -428,6 +428,7 @@ export default function CaptureFlow() {
         summary: triageResult.summary,
         severity: triageResult.severity,
         recommendations: triageResult.recommendations,
+        inferenceType: triageResult.inferenceType,
       });
       
       console.log('\n' + '='.repeat(50));
@@ -450,6 +451,7 @@ export default function CaptureFlow() {
         summary: 'Analysis complete. Your vitals appear normal.',
         severity: 'green',
         recommendations: ['Stay hydrated', 'Continue regular check-ins'],
+        inferenceType: 'fallback',
       });
       setStep('results');
       router.replace('/results');
