@@ -1,16 +1,22 @@
 {
   "expo": {
-    "name": "cactus-hackathon",
+    "name": "Pocket Doctor",
     "slug": "cactus-hackathon",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "cactushackathon",
+    "scheme": "pocket-doctor",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.argenistherose.cactus-hackathon"
+      "bundleIdentifier": "com.argenistherose.cactus-hackathon",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Pocket Doctor uses Face ID to protect your health data",
+        "NSHealthShareUsageDescription": "Pocket Doctor would like to read your health data to provide personalized wellness insights",
+        "NSHealthUpdateUsageDescription": "Pocket Doctor would like to save wellness check results to Apple Health",
+        "UIBackgroundModes": ["fetch", "processing"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -38,15 +44,29 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Pocket Wellness to access your camera for health checks."
+          "cameraPermission": "Allow Pocket Doctor to access your camera for health checks."
         }
       ],
       [
         "expo-av",
         {
-          "microphonePermission": "Allow Pocket Wellness to access your microphone for cough analysis."
+          "microphonePermission": "Allow Pocket Doctor to access your microphone for cough analysis."
         }
       ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Pocket Doctor to use Face ID for secure access."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#3BB3A0"
+        }
+      ],
+      "expo-background-fetch",
       "expo-sensors",
       "expo-font"
     ],

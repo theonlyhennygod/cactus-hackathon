@@ -1,18 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import HealthTrends from '@/components/HealthTrends';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Colors, palette, radius, shadows, spacing, typography } from '@/constants/theme';
+import { registerBackgroundFetchAsync } from '@/utils/backgroundTasks';
 
 export default function HomeScreen() {
   const router = useRouter();
   const colors = Colors.light;
+
+  // Register background fetch on app launch
+  useEffect(() => {
+    registerBackgroundFetchAsync();
+  }, []);
 
   const features = [
     { icon: 'heart-outline' as const, title: 'Heart Rate', desc: 'PPG Analysis' },
@@ -118,8 +125,14 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
 
+        {/* Health Trends */}
+        <Animated.View entering={FadeInUp.delay(700).duration(600).springify()}>
+          <Text style={styles.sectionTitle}>Your Trends</Text>
+          <HealthTrends metric="heartRate" />
+        </Animated.View>
+
         {/* Privacy Badge */}
-        <Animated.View entering={FadeInUp.delay(800).duration(600).springify()}>
+        <Animated.View entering={FadeInUp.delay(900).duration(600).springify()}>
           <Card variant="filled" padding="md" style={styles.privacyCard}>
             <View style={styles.privacyContent}>
               <View style={styles.privacyIcon}>
