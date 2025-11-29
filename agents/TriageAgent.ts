@@ -1,3 +1,5 @@
+import { modelManager } from '../utils/modelManager';
+
 export interface TriageResult {
     summary: string;
     severity: 'green' | 'yellow' | 'red';
@@ -11,20 +13,82 @@ export const generateTriage = async (
 ): Promise<TriageResult> => {
     console.log('TriageAgent: Generating recommendations based on', { vitals, visionResult, audioResult });
 
-    // TODO: Load Qwen3-600M and prompt with data
-    // const prompt = \`Analyze the following wellness data: ...\`;
-    // const output = await LocalLLM.generate(prompt);
+    try {
+        // Load the triage LLM (Qwen2.5)
+        const lm = await modelManager.loadModel('triage', {
+            contextSize: 2048,
+        });
+        console.log('✅ Triage model loaded');
+        
+        // Create prompt for LLM
+        const prompt = `You are a wellness coach providing non-diagnostic insights. Analyze the following data and provide guidance:
 
-    // Mock result
-    await new Promise(resolve => setTimeout(resolve, 2000));
+Heart Rate: ${vitals.heartRate || 'N/A'} bpm
+HRV: ${vitals.hrv || 'N/A'} ms
+Breathing Rate: ${audioResult.breathingRate || 'N/A'} rpm
+Tremor Index: ${vitals.tremorIndex || 'N/A'}
+Cough Type: ${audioResult.coughType || 'N/A'}
+Skin Condition: ${visionResult.skinCondition || 'N/A'}
 
-    return {
-        summary: 'Your vitals are within a healthy range, but you seem a bit stressed.',
-        severity: 'green',
-        recommendations: [
-            'Take a 5-minute breathing break.',
-            'Stay hydrated.',
-            'Monitor your cough if it persists.',
-        ],
-    };
+Provide:
+1. A brief summary (2-3 sentences)
+2. Severity level (green/yellow/red)
+3. 3 actionable recommendations
+
+Format your response as JSON:
+{
+  "summary": "...",
+  "severity": "green|yellow|red",
+  "recommendations": ["...", "...", "..."]
+}`;
+
+        const result = await lm.complete({
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are a helpful wellness coach. Always respond in valid JSON format.',
+                },
+                {
+                    role: 'user',
+                    content: prompt,
+                },
+            ],
+            options: {
+                temperature: 0.7,
+                maxTokens: 512,
+            },
+        });
+        
+        console.log('🔮 Triage LLM result:', result);
+        
+        // Parse LLM response
+        let parsed;
+        try {
+            parsed = JSON.parse(result.response);
+        } catch (e) {
+            console.warn('Failed to parse LLM JSON, using fallback');
+            parsed = {};
+        }
+
+        return {
+            summary: parsed.summary || 'Your vitals appear normal. Continue monitoring your wellness.',
+            severity: parsed.severity || 'green',
+            recommendations: parsed.recommendations || [
+                'Stay hydrated',
+                'Practice breathing exercises',
+                'Maintain regular check-ins',
+            ],
+        };
+    } catch (error) {
+        console.error('TriageAgent error:', error);
+        // Fallback to safe default
+        return {
+            summary: 'Unable to analyze data. Please try again.',
+            severity: 'yellow',
+            recommendations: [
+                'Consult a healthcare professional if concerned.',
+                'Monitor your symptoms.',
+            ],
+        };
+    }
 };
