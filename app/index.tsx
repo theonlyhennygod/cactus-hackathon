@@ -6,7 +6,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import HealthTrends from '@/components/HealthTrends';
+// import HealthTrends from '@/components/HealthTrends'; // Disabled - requires dev build
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Colors, palette, radius, shadows, spacing, typography } from '@/constants/theme';
@@ -134,11 +134,11 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
 
-        {/* Health Trends */}
-        <Animated.View entering={FadeInUp.delay(700).duration(600).springify()}>
+        {/* Health Trends - Disabled for Expo Go compatibility */}
+        {/* <Animated.View entering={FadeInUp.delay(700).duration(600).springify()}>
           <Text style={styles.sectionTitle}>Your Trends</Text>
           <HealthTrends metric="heartRate" />
-        </Animated.View>
+        </Animated.View> */}
 
         {/* Privacy Badge */}
         <Animated.View entering={FadeInUp.delay(900).duration(600).springify()}>
