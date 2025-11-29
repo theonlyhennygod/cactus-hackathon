@@ -4,7 +4,7 @@ import { mmkvStorage } from './mmkv'; // We'll need to create this wrapper
 
 // Types
 interface CheckInState {
-  step: 'face' | 'cough' | 'skin' | 'tremor' | 'processing' | 'results';
+  step: 'face' | 'cough' | 'breathing' | 'tremor' | 'processing' | 'results';
   isCapturing: boolean;
   setStep: (step: CheckInState['step']) => void;
   setIsCapturing: (isCapturing: boolean) => void;

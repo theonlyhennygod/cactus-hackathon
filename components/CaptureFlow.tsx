@@ -30,6 +30,7 @@ import { AccelerometerData, startAccelerometer, stopAccelerometer } from '@/util
 const STEPS = [
   { key: 'face', label: 'Face', icon: 'scan-outline' as const },
   { key: 'cough', label: 'Cough', icon: 'mic-outline' as const },
+  { key: 'breathing', label: 'Breathing', icon: 'leaf-outline' as const },
   { key: 'tremor', label: 'Tremor', icon: 'hand-left-outline' as const },
 ];
 
@@ -54,6 +55,11 @@ export default function CaptureFlow() {
   // Use refs to store captured data immediately (avoids React state timing issues)
   const capturedAudioUriRef = useRef<string | null>(null);
   const capturedImageUriRef = useRef<string | null>(null);
+  
+  // Breathing exercise state
+  const [breathingCycles, setBreathingCycles] = useState(0);
+  const [breathPhase, setBreathPhase] = useState<'idle' | 'inhale' | 'hold' | 'exhale'>('idle');
+  const breathingActiveRef = useRef(false);
 
   // Animation values
   const pulseScale = useSharedValue(1);
@@ -136,11 +142,50 @@ export default function CaptureFlow() {
         console.error('Failed to start recording', err);
         setIsCapturing(false);
       }
+    } else if (step === 'breathing') {
+      // Start breathing exercise - 3 cycles of 4-4-4 breathing
+      setTimeLeft(36); // 3 cycles × 12 seconds each
+      breathingActiveRef.current = true;
+      setBreathingCycles(0);
+      runBreathingExercise();
     } else if (step === 'tremor') {
       startAccelerometer();
       setTimeLeft(10);
     }
   };
+
+  // Breathing exercise logic
+  const runBreathingExercise = async () => {
+    const PHASE_DURATION = 4000; // 4 seconds per phase
+    
+    for (let cycle = 0; cycle < 3; cycle++) {
+      if (!breathingActiveRef.current) break;
+      
+      // Inhale
+      setBreathPhase('inhale');
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await sleep(PHASE_DURATION);
+      if (!breathingActiveRef.current) break;
+      
+      // Hold
+      setBreathPhase('hold');
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await sleep(PHASE_DURATION);
+      if (!breathingActiveRef.current) break;
+      
+      // Exhale
+      setBreathPhase('exhale');
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await sleep(PHASE_DURATION);
+      
+      setBreathingCycles(cycle + 1);
+    }
+    
+    breathingActiveRef.current = false;
+    setBreathPhase('idle');
+  };
+
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
   const handleStepComplete = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -166,6 +211,11 @@ export default function CaptureFlow() {
         }
         setRecording(null);
       }
+      setStep('breathing');
+    } else if (step === 'breathing') {
+      // Breathing exercise complete
+      breathingActiveRef.current = false;
+      console.log('🌬️ Breathing exercise complete:', breathingCycles, 'cycles');
       setStep('tremor');
     } else if (step === 'tremor') {
       // Stop accelerometer and save data
@@ -284,6 +334,14 @@ export default function CaptureFlow() {
           icon: 'mic-outline' as const,
           instruction: 'Cough 3 times clearly',
           color: palette.warning[500],
+        };
+      case 'breathing':
+        return {
+          title: 'Breathing Exercise',
+          subtitle: 'Calming 4-4-4 box breathing',
+          icon: 'leaf-outline' as const,
+          instruction: 'Follow the breathing guide',
+          color: palette.primary[500],
         };
       case 'tremor':
         return {
@@ -407,6 +465,48 @@ export default function CaptureFlow() {
                   {[...Array(5)].map((_, i) => (
                     <SoundWave key={i} delay={i * 100} />
                   ))}
+                </View>
+              )}
+            </LinearGradient>
+          </Animated.View>
+        )}
+
+        {/* Breathing Exercise View */}
+        {step === 'breathing' && (
+          <Animated.View 
+            entering={FadeIn.duration(400)} 
+            style={styles.sensorContainer}
+          >
+            <LinearGradient
+              colors={[palette.primary[50], palette.primary[100]]}
+              style={styles.sensorGradient}
+            >
+              <Animated.View style={[styles.breathingCircle, pulseStyle, {
+                transform: [{ scale: breathPhase === 'inhale' ? 1.3 : breathPhase === 'hold' ? 1.3 : 1 }]
+              }]}>
+                <LinearGradient
+                  colors={[
+                    breathPhase === 'inhale' ? palette.primary[400] : 
+                    breathPhase === 'hold' ? palette.warning[400] : 
+                    breathPhase === 'exhale' ? palette.success[400] : palette.primary[300],
+                    breathPhase === 'inhale' ? palette.primary[500] : 
+                    breathPhase === 'hold' ? palette.warning[500] : 
+                    breathPhase === 'exhale' ? palette.success[500] : palette.primary[400],
+                  ]}
+                  style={styles.breathingInner}
+                >
+                  <Ionicons name="leaf" size={40} color={palette.white} />
+                  <Text style={styles.breathPhaseText}>
+                    {breathPhase === 'inhale' ? 'Breathe In' : 
+                     breathPhase === 'hold' ? 'Hold' : 
+                     breathPhase === 'exhale' ? 'Breathe Out' : 'Ready'}
+                  </Text>
+                </LinearGradient>
+              </Animated.View>
+              {isCapturing && (
+                <View style={styles.breathingInfo}>
+                  <Text style={styles.breathingCycles}>Cycle {breathingCycles + 1} of 3</Text>
+                  <Text style={styles.breathingHint}>4-4-4 Box Breathing</Text>
                 </View>
               )}
             </LinearGradient>
@@ -645,6 +745,39 @@ const styles = StyleSheet.create({
     fontSize: typography.size.md,
     color: palette.success[700],
     fontWeight: typography.weight.medium,
+  },
+  breathingCircle: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    ...shadows.lg,
+  },
+  breathingInner: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  breathPhaseText: {
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
+    color: palette.white,
+    marginTop: spacing.sm,
+  },
+  breathingInfo: {
+    marginTop: spacing.xl,
+    alignItems: 'center',
+  },
+  breathingCycles: {
+    fontSize: typography.size.lg,
+    color: palette.primary[700],
+    fontWeight: typography.weight.semibold,
+  },
+  breathingHint: {
+    fontSize: typography.size.sm,
+    color: palette.primary[500],
+    marginTop: spacing.xs,
   },
   processingContainer: {
     flex: 1,
