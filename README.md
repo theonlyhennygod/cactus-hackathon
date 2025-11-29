@@ -10,7 +10,7 @@
 [![React Native](https://img.shields.io/badge/React%20Native-Expo%2054-blue?style=for-the-badge&logo=react)](https://expo.dev)
 [![On-Device AI](https://img.shields.io/badge/AI-100%25%20On--Device-purple?style=for-the-badge)](https://cactus.dev)
 
-<img src="assets/images/icon.png" alt="Pocket Doctor" width="140" />
+<img src="assets/images/pocket-doctor-icon.png" alt="Pocket Doctor" width="140" />
 
 [Features](#-features) • [Demo](#-demo) • [Tech Stack](#️-tech-stack) • [Getting Started](#-getting-started) • [Architecture](#-architecture)
 
