@@ -5,7 +5,7 @@
 Built for the **Cactus x Nothing x Hugging Face Mobile AI Hackathon** 🌵
 
 <p align="center">
-  <img src="assets/images/icon.png" alt="Pocket Doctor" width="120" />
+  <img src="assets/images/pocket-doctor-icon.png" alt="Pocket Doctor" width="120" />
 </p>
 
 ## 🎯 What is Pocket Doctor?
@@ -158,16 +158,6 @@ pocket-doctor/
 └── hooks/
     └── useNetworkStatus.ts # Offline detection
 ```
-
-## 📋 Evaluation Criteria
-
-| Criteria | Score | Implementation |
-|----------|-------|---------------|
-| **Technical (Cactus SDK)** | 9/10 | CactusLM (Qwen3, LFM2-VL), CactusSTT (Whisper) |
-| **Edge Capabilities** | 9/10 | 5/6 agents 100% local, only tremor uses cloud |
-| **Design & UX** | 8/10 | Polished UI, animations, haptics, guided flows |
-| **Utility & Innovation** | 8/10 | Multi-modal wellness, not a chat app |
-| **Completeness** | ✅ | Functional build, all features working |
 
 ## 🔧 Cactus SDK Integration
 
