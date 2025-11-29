@@ -1,4 +1,3 @@
-import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 
 export interface NetworkStatus {
@@ -9,35 +8,57 @@ export interface NetworkStatus {
 
 /**
  * Hook to monitor network connectivity status
- * Used to show offline indicator and determine inference strategy
+ * Uses a safe fallback for Expo Go compatibility
  */
 export function useNetworkStatus(): NetworkStatus {
   const [status, setStatus] = useState<NetworkStatus>({
     isConnected: true,
     isOffline: false,
-    connectionType: null,
+    connectionType: 'unknown',
   });
 
   useEffect(() => {
-    // Subscribe to network state updates
-    const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
-      setStatus({
-        isConnected: state.isConnected ?? false,
-        isOffline: !(state.isConnected ?? true),
-        connectionType: state.type,
-      });
-    });
+    let unsubscribe: (() => void) | undefined;
 
-    // Get initial state
-    NetInfo.fetch().then((state: NetInfoState) => {
-      setStatus({
-        isConnected: state.isConnected ?? false,
-        isOffline: !(state.isConnected ?? true),
-        connectionType: state.type,
-      });
-    });
+    const initNetInfo = async () => {
+      try {
+        // Dynamically import to avoid Expo Go crash
+        const NetInfo = await import('@react-native-community/netinfo');
+        
+        // Subscribe to network state updates
+        unsubscribe = NetInfo.default.addEventListener((state) => {
+          setStatus({
+            isConnected: state.isConnected ?? true,
+            isOffline: !(state.isConnected ?? true),
+            connectionType: state.type,
+          });
+        });
 
-    return () => unsubscribe();
+        // Get initial state
+        const state = await NetInfo.default.fetch();
+        setStatus({
+          isConnected: state.isConnected ?? true,
+          isOffline: !(state.isConnected ?? true),
+          connectionType: state.type,
+        });
+      } catch (error) {
+        // NetInfo not available (Expo Go) - assume online
+        console.log('NetInfo not available, assuming online');
+        setStatus({
+          isConnected: true,
+          isOffline: false,
+          connectionType: 'unknown',
+        });
+      }
+    };
+
+    initNetInfo();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   return status;
