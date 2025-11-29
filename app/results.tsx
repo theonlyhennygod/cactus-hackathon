@@ -64,10 +64,10 @@ export default function ResultsScreen() {
   // Calculate overall status
   const getOverallStatus = () => {
     const statuses = [
-      vitals.heartRate ? getHeartRateStatus(vitals.heartRate) : 'normal',
-      vitals.hrv ? getHRVStatus(vitals.hrv) : 'normal',
-      vitals.breathingRate ? getBreathingStatus(vitals.breathingRate) : 'normal',
-      vitals.tremorIndex ? getTremorStatus(vitals.tremorIndex) : 'normal',
+      vitals.heartRate !== null ? getHeartRateStatus(vitals.heartRate) : 'normal',
+      vitals.hrv !== null ? getHRVStatus(vitals.hrv) : 'normal',
+      vitals.breathingRate !== null ? getBreathingStatus(vitals.breathingRate) : 'normal',
+      vitals.tremorIndex !== null ? getTremorStatus(vitals.tremorIndex) : 'normal',
     ];
     
     if (statuses.includes('concern')) return { status: 'concern', message: 'Consider consulting a healthcare provider', color: palette.danger[500] };
@@ -124,19 +124,19 @@ export default function ResultsScreen() {
           <View style={styles.vitalColumn}>
             <VitalCard
               title="Heart Rate"
-              value={vitals.heartRate ? vitals.heartRate.toFixed(0) : '--'}
+              value={vitals.heartRate !== null ? vitals.heartRate.toFixed(0) : '--'}
               unit="bpm"
               icon="heart"
-              status={vitals.heartRate ? getHeartRateStatus(vitals.heartRate) : 'normal'}
+              status={vitals.heartRate !== null ? getHeartRateStatus(vitals.heartRate) : 'normal'}
               subtitle="Resting heart rate"
               animationDelay={100}
             />
             <VitalCard
               title="Breathing Rate"
-              value={vitals.breathingRate ? vitals.breathingRate.toFixed(0) : '--'}
+              value={vitals.breathingRate !== null ? vitals.breathingRate.toFixed(0) : '--'}
               unit="rpm"
               icon="fitness"
-              status={vitals.breathingRate ? getBreathingStatus(vitals.breathingRate) : 'normal'}
+              status={vitals.breathingRate !== null ? getBreathingStatus(vitals.breathingRate) : 'normal'}
               subtitle="Breaths per minute"
               animationDelay={300}
             />
@@ -144,19 +144,19 @@ export default function ResultsScreen() {
           <View style={styles.vitalColumn}>
             <VitalCard
               title="HRV"
-              value={vitals.hrv ? vitals.hrv.toFixed(0) : '--'}
+              value={vitals.hrv !== null ? vitals.hrv.toFixed(0) : '--'}
               unit="ms"
               icon="pulse"
-              status={vitals.hrv ? getHRVStatus(vitals.hrv) : 'normal'}
+              status={vitals.hrv !== null ? getHRVStatus(vitals.hrv) : 'normal'}
               subtitle="Heart rate variability"
               animationDelay={200}
             />
             <VitalCard
               title="Tremor Index"
-              value={vitals.tremorIndex ? vitals.tremorIndex.toFixed(2) : '--'}
+              value={vitals.tremorIndex !== null ? vitals.tremorIndex.toFixed(2) : '--'}
               unit=""
               icon="hand-left"
-              status={vitals.tremorIndex ? getTremorStatus(vitals.tremorIndex) : 'normal'}
+              status={vitals.tremorIndex !== null ? getTremorStatus(vitals.tremorIndex) : 'normal'}
               subtitle="Hand stability score"
               animationDelay={400}
             />

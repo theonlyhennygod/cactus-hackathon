@@ -7,14 +7,14 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
-    FadeIn,
-    FadeInDown,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSequence,
-    withSpring,
-    withTiming
+  FadeIn,
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -45,11 +45,15 @@ export default function CaptureFlow() {
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
   const cameraRef = useRef<CameraView>(null);
 
-  // Captured data for agent processing
+  // Captured data for agent processing - use refs for immediate access
   const [capturedImageUri, setCapturedImageUri] = useState<string | null>(null);
   const [capturedAudioUri, setCapturedAudioUri] = useState<string | null>(null);
   const [capturedAccelData, setCapturedAccelData] = useState<AccelerometerData[]>([]);
   const [processingStatus, setProcessingStatus] = useState<string>('');
+  
+  // Use refs to store captured data immediately (avoids React state timing issues)
+  const capturedAudioUriRef = useRef<string | null>(null);
+  const capturedImageUriRef = useRef<string | null>(null);
 
   // Animation values
   const pulseScale = useSharedValue(1);
@@ -109,6 +113,7 @@ export default function CaptureFlow() {
             const photo = await cameraRef.current.takePictureAsync({ quality: 0.5 });
             if (photo?.uri) {
               setCapturedImageUri(photo.uri);
+              capturedImageUriRef.current = photo.uri; // Store in ref for immediate access
               console.log('📸 Face image captured:', photo.uri);
             }
           } catch (err) {
@@ -150,10 +155,11 @@ export default function CaptureFlow() {
       if (recording) {
         try {
           await recording.stopAndUnloadAsync();
-          const uri = recording.getURI();
-          if (uri) {
-            setCapturedAudioUri(uri);
-            console.log('🎤 Audio recorded:', uri);
+          const audioUri = recording.getURI();
+          if (audioUri) {
+            setCapturedAudioUri(audioUri);
+            capturedAudioUriRef.current = audioUri; // Store in ref for immediate access
+            console.log('🎤 Audio recorded:', audioUri);
           }
         } catch (err) {
           console.log('Audio stop error:', err);
@@ -163,34 +169,46 @@ export default function CaptureFlow() {
       setStep('tremor');
     } else if (step === 'tremor') {
       // Stop accelerometer and save data
-      const data = stopAccelerometer();
-      setCapturedAccelData(data);
-      console.log('📊 Accelerometer data points:', data.length);
+      const accelData = stopAccelerometer();
+      setCapturedAccelData(accelData);
+      console.log('📊 Accelerometer data points:', accelData.length);
       
-      // Move to processing and run AI agents
+      // Move to processing and run AI agents with captured data
       setStep('processing');
-      await runAgentProcessing();
+      // Use refs for URIs to avoid React state timing issues
+      await runAgentProcessing(
+        capturedImageUriRef.current,
+        capturedAudioUriRef.current,
+        accelData
+      );
     }
   };
 
   // Run all AI agents and navigate to results
-  const runAgentProcessing = async () => {
+  const runAgentProcessing = async (
+    imageUri: string | null,
+    audioUri: string | null,
+    accelData: AccelerometerData[]
+  ) => {
     try {
       setProcessingStatus('Analyzing face scan...');
       console.log('🤖 Starting AI agent processing...');
+      console.log('📷 Image URI:', imageUri);
+      console.log('🎤 Audio URI:', audioUri);
+      console.log('📊 Accel data points:', accelData.length);
       
       // 1. Vision Agent - analyze face image
-      const visionResult = await analyzeImage(capturedImageUri || '');
+      const visionResult = await analyzeImage(imageUri || '');
       console.log('✅ Vision analysis:', visionResult);
       
       setProcessingStatus('Analyzing audio...');
       // 2. Audio Agent - analyze cough/breathing
-      const audioResult = await analyzeAudio(capturedAudioUri || '');
+      const audioResult = await analyzeAudio(audioUri || '');
       console.log('✅ Audio analysis:', audioResult);
       
       setProcessingStatus('Analyzing motion data...');
       // 3. Echo-LNN Agent - analyze time series (PPG + accelerometer)
-      const echoResult = await analyzeTimeSeries([], capturedAccelData);
+      const echoResult = await analyzeTimeSeries([], accelData);
       console.log('✅ Time-series analysis:', echoResult);
       
       // Update vitals store with agent results
