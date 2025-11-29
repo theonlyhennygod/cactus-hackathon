@@ -87,8 +87,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b25dede9-4659-4160-b034-be5dcd8d4b31"
+        "projectId": "2cc5cea7-f203-4a53-bbe7-b191a4914d32"
       }
-    }
+    },
+    "owner": "ehushubhamshaw"
   }
 }
