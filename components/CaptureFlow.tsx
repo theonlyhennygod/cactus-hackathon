@@ -103,11 +103,12 @@ export default function CaptureFlow() {
       interval = setInterval(() => {
         setTimeLeft((prev) => prev - 1);
       }, 1000);
-    } else if (timeLeft === 0 && isCapturing) {
+    } else if (timeLeft === 0 && isCapturing && step !== 'breathing') {
+      // Don't auto-complete breathing - it controls its own completion
       handleStepComplete();
     }
     return () => clearInterval(interval);
-  }, [isCapturing, timeLeft]);
+  }, [isCapturing, timeLeft, step]);
 
   // Enhanced animations for capturing state
   useEffect(() => {
@@ -225,7 +226,8 @@ export default function CaptureFlow() {
       }
     } else if (step === 'breathing') {
       // Start breathing exercise - 3 cycles of 4-4-4 breathing
-      setTimeLeft(36); // 3 cycles × 12 seconds each
+      // Don't use timer - breathing exercise controls its own completion
+      setTimeLeft(0); // No countdown timer for breathing
       breathingActiveRef.current = true;
       setBreathingCycles(0);
       runBreathingExercise();
@@ -239,31 +241,44 @@ export default function CaptureFlow() {
   const runBreathingExercise = async () => {
     const PHASE_DURATION = 4000; // 4 seconds per phase
     
+    console.log('🌬️ Starting breathing exercise...');
+    
     for (let cycle = 0; cycle < 3; cycle++) {
-      if (!breathingActiveRef.current) break;
+      if (!breathingActiveRef.current) {
+        console.log('🌬️ Breathing exercise cancelled');
+        return;
+      }
       
+      console.log(`🌬️ Cycle ${cycle + 1}/3 - Inhale`);
       // Inhale
       setBreathPhase('inhale');
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await sleep(PHASE_DURATION);
-      if (!breathingActiveRef.current) break;
+      if (!breathingActiveRef.current) return;
       
+      console.log(`🌬️ Cycle ${cycle + 1}/3 - Hold`);
       // Hold
       setBreathPhase('hold');
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       await sleep(PHASE_DURATION);
-      if (!breathingActiveRef.current) break;
+      if (!breathingActiveRef.current) return;
       
+      console.log(`🌬️ Cycle ${cycle + 1}/3 - Exhale`);
       // Exhale
       setBreathPhase('exhale');
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       await sleep(PHASE_DURATION);
       
       setBreathingCycles(cycle + 1);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     
+    console.log('🌬️ Breathing exercise complete!');
     breathingActiveRef.current = false;
     setBreathPhase('idle');
+    
+    // Automatically move to next step after breathing completes
+    handleStepComplete();
   };
 
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
