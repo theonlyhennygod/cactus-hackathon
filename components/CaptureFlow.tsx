@@ -64,6 +64,29 @@ export default function CaptureFlow() {
   // Animation values
   const pulseScale = useSharedValue(1);
   const progressWidth = useSharedValue(0);
+  const scanLineY = useSharedValue(0);
+  const glowOpacity = useSharedValue(0.3);
+  const breathScale = useSharedValue(1);
+  const waveAmplitude = useSharedValue(0);
+  
+  // Haptic feedback patterns
+  const runScanningHaptics = async () => {
+    // Gentle pulses while scanning
+    while (isCapturing) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await sleep(800);
+    }
+  };
+  
+  const runHeartbeatHaptics = async () => {
+    // Heartbeat pattern: thump-thump... thump-thump...
+    while (isCapturing && step === 'face') {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await sleep(150);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await sleep(800);
+    }
+  };
 
   useEffect(() => {
     if (step === 'face' && !permission?.granted) {
@@ -86,9 +109,10 @@ export default function CaptureFlow() {
     return () => clearInterval(interval);
   }, [isCapturing, timeLeft]);
 
-  // Pulse animation for capturing state
+  // Enhanced animations for capturing state
   useEffect(() => {
     if (isCapturing) {
+      // Pulse animation
       pulseScale.value = withRepeat(
         withSequence(
           withTiming(1.15, { duration: 800 }),
@@ -97,6 +121,41 @@ export default function CaptureFlow() {
         -1,
         true
       );
+      
+      // Scan line animation (moves up and down)
+      scanLineY.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 2000 }),
+          withTiming(0, { duration: 2000 })
+        ),
+        -1,
+        true
+      );
+      
+      // Glow pulse
+      glowOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.8, { duration: 1000 }),
+          withTiming(0.3, { duration: 1000 })
+        ),
+        -1,
+        true
+      );
+      
+      // Sound wave amplitude
+      waveAmplitude.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 300 }),
+          withTiming(0.5, { duration: 300 })
+        ),
+        -1,
+        true
+      );
+      
+      // Start haptic feedback based on step
+      if (step === 'face') {
+        runHeartbeatHaptics();
+      }
     } else {
       pulseScale.value = withSpring(1);
     }
@@ -105,6 +164,28 @@ export default function CaptureFlow() {
   const pulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value }],
   }));
+
+  // Scan line moves up and down
+  const scanLineStyle = useAnimatedStyle(() => ({
+    top: `${scanLineY.value * 100}%`,
+    opacity: 0.9,
+  }));
+
+  // Glow effect pulsing
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+    shadowOpacity: glowOpacity.value,
+  }));
+
+  // Breathing circle scale
+  const breathCircleStyle = useAnimatedStyle(() => {
+    const scale = breathPhase === 'inhale' ? 1.4 : 
+                  breathPhase === 'hold' ? 1.4 : 
+                  breathPhase === 'exhale' ? 1 : 1;
+    return {
+      transform: [{ scale: withTiming(scale, { duration: 3500 }) }],
+    };
+  });
 
   const startCapture = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -433,16 +514,36 @@ export default function CaptureFlow() {
           <Animated.View entering={FadeIn.duration(400)} style={styles.cameraContainer}>
             <CameraView style={styles.camera} facing="front" ref={cameraRef} />
             <LinearGradient
-              colors={['rgba(0,0,0,0.6)', 'transparent', 'transparent', 'rgba(0,0,0,0.6)']}
+              colors={['rgba(0,0,0,0.7)', 'transparent', 'transparent', 'rgba(0,0,0,0.7)']}
               style={styles.cameraOverlay}
               pointerEvents="none"
             >
-              {/* Face guide circle */}
+              {/* Face guide with scanning effects */}
               <Animated.View style={[styles.faceGuide, pulseStyle, isCapturing && styles.faceGuideActive]}>
                 {isCapturing && (
-                  <View style={styles.scanLine} />
+                  <>
+                    {/* Animated scan line */}
+                    <Animated.View style={[styles.scanLine, scanLineStyle]} />
+                    
+                    {/* Corner brackets for scanning effect */}
+                    <View style={styles.cornerTL} />
+                    <View style={styles.cornerTR} />
+                    <View style={styles.cornerBL} />
+                    <View style={styles.cornerBR} />
+                    
+                    {/* Glow effect */}
+                    <Animated.View style={[styles.scanGlow, glowStyle]} />
+                  </>
                 )}
               </Animated.View>
+              
+              {/* Scanning status indicator */}
+              {isCapturing && (
+                <View style={styles.scanStatus}>
+                  <View style={styles.scanDot} />
+                  <Text style={styles.scanText}>Analyzing vitals...</Text>
+                </View>
+              )}
             </LinearGradient>
           </Animated.View>
         )}
@@ -481,9 +582,16 @@ export default function CaptureFlow() {
               colors={[palette.primary[50], palette.primary[100]]}
               style={styles.sensorGradient}
             >
-              <Animated.View style={[styles.breathingCircle, pulseStyle, {
-                transform: [{ scale: breathPhase === 'inhale' ? 1.3 : breathPhase === 'hold' ? 1.3 : 1 }]
-              }]}>
+              {/* Outer ripple rings */}
+              {isCapturing && (
+                <>
+                  <Animated.View style={[styles.breathRing, styles.breathRing1, breathCircleStyle]} />
+                  <Animated.View style={[styles.breathRing, styles.breathRing2, breathCircleStyle]} />
+                  <Animated.View style={[styles.breathRing, styles.breathRing3, breathCircleStyle]} />
+                </>
+              )}
+              
+              <Animated.View style={[styles.breathingCircle, breathCircleStyle]}>
                 <LinearGradient
                   colors={[
                     breathPhase === 'inhale' ? palette.primary[400] : 
@@ -697,9 +805,87 @@ const styles = StyleSheet.create({
   scanLine: {
     position: 'absolute',
     width: '100%',
-    height: 3,
+    height: 4,
     backgroundColor: palette.primary[400],
-    opacity: 0.8,
+    shadowColor: palette.primary[400],
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  scanGlow: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: 140,
+    backgroundColor: palette.primary[400],
+    opacity: 0.1,
+  },
+  cornerTL: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    width: 40,
+    height: 40,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+    borderColor: palette.primary[400],
+    borderTopLeftRadius: 8,
+  },
+  cornerTR: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
+    borderColor: palette.primary[400],
+    borderTopRightRadius: 8,
+  },
+  cornerBL: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    width: 40,
+    height: 40,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+    borderColor: palette.primary[400],
+    borderBottomLeftRadius: 8,
+  },
+  cornerBR: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderColor: palette.primary[400],
+    borderBottomRightRadius: 8,
+  },
+  scanStatus: {
+    position: 'absolute',
+    bottom: 100,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+  },
+  scanDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: palette.primary[400],
+    marginRight: spacing.sm,
+  },
+  scanText: {
+    color: palette.white,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.medium,
   },
   sensorContainer: {
     flex: 1,
@@ -746,11 +932,33 @@ const styles = StyleSheet.create({
     color: palette.success[700],
     fontWeight: typography.weight.medium,
   },
+  breathRing: {
+    position: 'absolute',
+    borderWidth: 2,
+    borderColor: palette.primary[300],
+    borderRadius: 999,
+  },
+  breathRing1: {
+    width: 220,
+    height: 220,
+    opacity: 0.3,
+  },
+  breathRing2: {
+    width: 260,
+    height: 260,
+    opacity: 0.2,
+  },
+  breathRing3: {
+    width: 300,
+    height: 300,
+    opacity: 0.1,
+  },
   breathingCircle: {
     width: 180,
     height: 180,
     borderRadius: 90,
     ...shadows.lg,
+    zIndex: 10,
   },
   breathingInner: {
     width: 180,
