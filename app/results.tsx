@@ -10,7 +10,7 @@ import { getTrendInsights, type TrendInsight } from '@/agents/MemoryAgent';
 import { AIStatusBadge } from '@/components/ui/AIStatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
+// import { OfflineIndicator } from '@/components/ui/OfflineIndicator'; // Disabled for Expo Go
 import { VitalCard } from '@/components/ui/VitalCard';
 import { Colors, palette, radius, shadows, spacing, typography } from '@/constants/theme';
 import { useCheckInStore, useVitalsStore } from '@/store';
@@ -135,8 +135,8 @@ export default function ResultsScreen() {
           </LinearGradient>
         </Animated.View>
 
-        {/* Offline Indicator */}
-        <OfflineIndicator />
+        {/* Offline Indicator - Disabled for Expo Go */}
+        {/* <OfflineIndicator /> */}
 
         {/* Vitals Grid */}
         <Text style={styles.sectionTitle}>Your Vitals</Text>
