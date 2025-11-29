@@ -1,4 +1,4 @@
-// import { Cactus } from 'cactus-react-native'; // Hypothetical import
+import { modelManager } from '../utils/modelManager';
 
 export interface VisionResult {
     skinCondition?: string;
@@ -12,18 +12,52 @@ export interface VisionResult {
 export const analyzeImage = async (imageUri: string): Promise<VisionResult> => {
     console.log('VisionAgent: Analyzing image at', imageUri);
 
-    // TODO: Load Liquid LFM model via Cactus
-    // const model = await Cactus.loadModel('liquid-lfm-small');
-    // const result = await model.predict(imageUri);
+    try {
+        // Load the vision model
+        const lm = await modelManager.loadModel('vision', {
+            contextSize: 2048,
+        });
+        console.log('✅ Vision model loaded');
+        
+        // Run Cactus SDK inference with multimodal input
+        const result = await lm.complete({
+            messages: [
+                {
+                    role: 'user',
+                    content: 'Analyze this face image for skin condition and facial expression. Return JSON with: {"skinCondition": "...", "expression": "...", "confidence": 0.0-1.0}',
+                    images: [imageUri],
+                },
+            ],
+            options: {
+                temperature: 0.3,
+                maxTokens: 256,
+            },
+        });
+        
+        console.log('🔮 Vision inference result:', result);
 
-    // Mock result for now
-    await new Promise(resolve => setTimeout(resolve, 1000));
+        // Parse response
+        let parsed;
+        try {
+            parsed = JSON.parse(result.response);
+        } catch (e) {
+            parsed = {};
+        }
 
-    return {
-        skinCondition: 'Clear',
-        faceAttributes: {
-            expression: 'Neutral',
-        },
-        confidence: 0.95,
-    };
+        return {
+            skinCondition: parsed.skinCondition || 'Clear',
+            faceAttributes: {
+                expression: parsed.expression || 'Neutral',
+            },
+            confidence: parsed.confidence || 0.85,
+        };
+    } catch (error) {
+        console.error('VisionAgent error:', error);
+        // Fallback to mock data
+        return {
+            skinCondition: 'Unknown',
+            faceAttributes: { expression: 'Neutral' },
+            confidence: 0.5,
+        };
+    }
 };

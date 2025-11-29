@@ -1,17 +1,16 @@
 {
   "expo": {
-    "name": "Pocket Doctor",
-    "slug": "pocket-doctor",
+    "name": "cactus-hackathon",
+    "slug": "cactus-hackathon",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "pocketdoctor",
+    "scheme": "cactushackathon",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.argenistherose.cactus-hackathon",
-      "deploymentTarget": "15.1"
+      "bundleIdentifier": "com.argenistherose.cactus-hackathon"
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +25,8 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
-      ]
+      ],
+      "package": "com.argenistherose.cactushackathon"
     },
     "web": {
       "bundler": "metro",
@@ -53,6 +53,15 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2cc5cea7-f203-4a53-bbe7-b191a4914d32"
+      }
     }
   }
 }
